@@ -1,4 +1,4 @@
-# Getting Started with Torresmo 🐷
+# Getting Started with Torresmo
 
 ## Prerequisites
 

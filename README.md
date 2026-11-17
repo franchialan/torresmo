@@ -1,4 +1,4 @@
-# <img src="docs/assets/logo.png" width="40" alt="Torresmo Logo"> Torresmo
+# <img src="docs/assets/logo.png" width="64" alt="Torresmo Logo"> Torresmo
 
 **Development infrastructure in one binary.**
 
