@@ -94,9 +94,9 @@ var snapshotListCmd = &cobra.Command{
 		})
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		fmt.Fprintln(w, "NAME\tCLUSTER\tPODS\tADDONS\tSIZE\tCREATED")
+		_, _ = fmt.Fprintln(w, "NAME\tCLUSTER\tPODS\tADDONS\tSIZE\tCREATED")
 		for _, info := range infos {
-			fmt.Fprintf(w, "%s\t%s\t%d\t%d\t%s\t%s\n",
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%d\t%d\t%s\t%s\n",
 				info.Name,
 				info.ClusterName,
 				info.Pods,

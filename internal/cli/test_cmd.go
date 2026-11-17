@@ -27,7 +27,8 @@ var testCmd = &cobra.Command{
 		_ = keep
 
 		if _, err := os.Stat(file); os.IsNotExist(err) {
-			return fmt.Errorf("Torresmofile not found at %q\n\nCreate a Torresmofile with a \"test\" target to run tests.\nSee: https://torresmo.dev/docs/pipeline", file)
+			fmt.Fprintf(os.Stderr, "Hint: Create a Torresmofile with a \"test\" target to run tests.\nSee: https://torresmo.dev/docs/pipeline\n")
+			return fmt.Errorf("torresmofile not found at %q", file)
 		}
 
 		tf, err := pipeline.ParseFile(file)

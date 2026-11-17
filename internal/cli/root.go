@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 
@@ -143,7 +144,8 @@ func initAgent() (*agent.Agent, error) {
 	ollamaClient = agent.NewOllamaClient(cfg.ToOllamaConfig())
 
 	if !ollamaClient.IsAvailable(context.Background()) {
-		return nil, fmt.Errorf("Ollama is not available at %s\n\nInstall Ollama from https://ollama.ai and run:\n  ollama pull %s", cfg.Agent.BaseURL, cfg.Agent.Model)
+		fmt.Fprintf(os.Stderr, "\nInstall Ollama from https://ollama.ai and run:\n  ollama pull %s\n", cfg.Agent.Model)
+		return nil, fmt.Errorf("ollama is not available at %s", cfg.Agent.BaseURL)
 	}
 
 	_, _, err := initDeps()

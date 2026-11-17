@@ -176,7 +176,8 @@ var pipelineCacheClearCmd = &cobra.Command{
 // loadTorresmofile resolves and parses a Torresmofile from the given path.
 func loadTorresmofile(file string) (*pipeline.Torresmofile, error) {
 	if _, err := os.Stat(file); os.IsNotExist(err) {
-		return nil, fmt.Errorf("Torresmofile not found at %q\n\nCreate one to define your pipeline targets.\nSee: https://torresmo.dev/docs/pipeline", file)
+		fmt.Fprintf(os.Stderr, "Hint: Create a Torresmofile to define your pipeline targets.\nSee: https://torresmo.dev/docs/pipeline\n")
+		return nil, fmt.Errorf("torresmofile not found at %q", file)
 	}
 	tf, err := pipeline.ParseFile(file)
 	if err != nil {

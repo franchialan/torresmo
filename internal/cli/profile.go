@@ -32,13 +32,13 @@ var profileListCmd = &cobra.Command{
 		defaultName := profile.Default()
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-		fmt.Fprintln(w, "NAME\tCPU\tMEMORY\tMAX-PODS\tDESCRIPTION")
+		_, _ = fmt.Fprintln(w, "NAME\tCPU\tMEMORY\tMAX-PODS\tDESCRIPTION")
 		for _, p := range profiles {
 			name := p.Name
 			if name == defaultName {
 				name += " (default)"
 			}
-			fmt.Fprintf(w, "%s\t%.1f\t%s\t%d\t%s\n",
+			_, _ = fmt.Fprintf(w, "%s\t%.1f\t%s\t%d\t%s\n",
 				name,
 				p.CPU,
 				formatMemory(p.Memory),

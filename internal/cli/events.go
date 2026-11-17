@@ -109,7 +109,7 @@ func printEvents(events []storage.EventRecord, typeFilter string) {
 			continue
 		}
 		ts := time.Unix(e.CreatedAt, 0).Format("15:04:05")
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
 			ts, e.Type, e.Kind, e.Name, e.Reason, e.Message)
 	}
 	_ = w.Flush()

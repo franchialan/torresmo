@@ -169,7 +169,7 @@ func renderDashboard(ctx context.Context, clusterName string, mgr *cluster.Manag
 		for _, e := range events {
 			ts := time.Unix(e.CreatedAt, 0).Format("15:04:05")
 			resource := fmt.Sprintf("%s %s", e.Kind, e.Name)
-			fmt.Fprintf(w, "  %s\t%s\t%s\t%s\t%s\n", ts, e.Type, resource, e.Reason, e.Message)
+			_, _ = fmt.Fprintf(w, "  %s\t%s\t%s\t%s\t%s\n", ts, e.Type, resource, e.Reason, e.Message)
 		}
 		_ = w.Flush()
 	} else if err != nil {

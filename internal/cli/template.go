@@ -38,13 +38,13 @@ var templateListCmd = &cobra.Command{
 		})
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		fmt.Fprintln(w, "NAME\tDESCRIPTION\tNODES\tPROFILE\tADDONS")
+		_, _ = fmt.Fprintln(w, "NAME\tDESCRIPTION\tNODES\tPROFILE\tADDONS")
 		for _, t := range templates {
 			addons := "-"
 			if len(t.Addons) > 0 {
 				addons = strings.Join(t.Addons, ", ")
 			}
-			fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%s\n",
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%s\n",
 				t.Name,
 				t.Description,
 				t.Nodes,

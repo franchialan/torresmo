@@ -179,9 +179,9 @@ var mockListCmd = &cobra.Command{
 		}
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-		fmt.Fprintln(w, "NAME\tNAMESPACE\tPORT\tSTATUS")
+		_, _ = fmt.Fprintln(w, "NAME\tNAMESPACE\tPORT\tSTATUS")
 		for _, m := range mocks {
-			fmt.Fprintf(w, "%s\t%s\t%d\t%s\n", m.Name, m.Namespace, m.Port, m.Status)
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%d\t%s\n", m.Name, m.Namespace, m.Port, m.Status)
 		}
 		return w.Flush()
 	},
