@@ -52,10 +52,11 @@ changelog:
 brews:
   - name: torresmo
     repository:
-      owner: torresmo-dev
-      name: homebrew-tap
+      owner: franchialan
+      name: homebrew-torresmo
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     directory: Formula
-    homepage: "https://github.com/torresmo-dev/torresmo"
+    homepage: "https://github.com/franchialan/torresmo"
     description: "A container orchestrator for local development"
     license: "MIT"
     install: |

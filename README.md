@@ -278,6 +278,7 @@ Pods (4)
 ### Homebrew (macOS/Linux)
 
 ```bash
+brew tap franchialan/torresmo
 brew install torresmo
 ```
 

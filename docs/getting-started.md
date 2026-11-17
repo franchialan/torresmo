@@ -10,7 +10,8 @@
 ### Homebrew (macOS/Linux)
 
 ```bash
-brew install torresmo-dev/tap/torresmo
+brew tap franchialan/torresmo
+brew install torresmo
 ```
 
 ### Shell script
