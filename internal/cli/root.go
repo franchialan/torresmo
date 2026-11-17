@@ -17,6 +17,7 @@ import (
 	"github.com/torresmo-dev/torresmo/internal/orchestrator"
 	"github.com/torresmo-dev/torresmo/internal/runtime"
 	"github.com/torresmo-dev/torresmo/internal/runtime/docker"
+	"github.com/torresmo-dev/torresmo/internal/runtime/podman"
 	"github.com/torresmo-dev/torresmo/internal/storage"
 	"github.com/torresmo-dev/torresmo/internal/storage/sqlite"
 )
@@ -118,6 +119,12 @@ func initDeps() (*cluster.Manager, storage.Store, error) {
 			rt, err = docker.New(context.Background())
 			if err != nil {
 				initErr = fmt.Errorf("failed to connect to Docker: %w", err)
+				return
+			}
+		case "podman":
+			rt, err = podman.New(context.Background())
+			if err != nil {
+				initErr = fmt.Errorf("failed to connect to Podman: %w", err)
 				return
 			}
 		default:

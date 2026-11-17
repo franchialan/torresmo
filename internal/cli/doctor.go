@@ -9,6 +9,7 @@ import (
 
 	"github.com/torresmo-dev/torresmo/internal/runtime"
 	"github.com/torresmo-dev/torresmo/internal/runtime/docker"
+	"github.com/torresmo-dev/torresmo/internal/runtime/podman"
 	"github.com/torresmo-dev/torresmo/internal/storage/sqlite"
 )
 
@@ -42,6 +43,21 @@ var doctorCmd = &cobra.Command{
 						fmt.Printf("  ✓ Docker v%s detected\n", info.Version)
 					}
 					fmt.Println("  ✓ Docker daemon is running")
+				}
+			case "podman":
+				ctx := context.Background()
+				client, err := podman.New(ctx)
+				if err != nil {
+					fmt.Printf("  ⚠ Podman detected but daemon is not running\n")
+					ready = false
+				} else {
+					info, err := client.Info(ctx)
+					if err != nil {
+						fmt.Printf("  ⚠ Podman connected but failed to get version\n")
+					} else {
+						fmt.Printf("  ✓ Podman v%s detected\n", info.Version)
+					}
+					fmt.Println("  ✓ Podman daemon is running")
 				}
 			default:
 				fmt.Printf("  ✓ %s detected\n", rtName)

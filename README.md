@@ -270,7 +270,7 @@ Pods (4)
 
 ## Prerequisites
 
-- [Docker](https://docs.docker.com/get-docker/) or [Podman](https://podman.io/getting-started/installation)
+- [Docker](https://docs.docker.com/get-docker/) **or** [Podman](https://podman.io/getting-started/installation) — Torresmo works with both!
 - [Ollama](https://ollama.ai) (optional, for AI agent mode)
 
 ## Installation
