@@ -78,7 +78,7 @@ func (a *Agent) executeIntent(ctx context.Context, intent *Intent) (string, erro
 	case "query":
 		return a.answerQuery(ctx, intent)
 	default:
-		return "", fmt.Errorf("I don't understand %q. Try something like:\n  - create a cluster\n  - install redis\n  - show me all pods\n  - run the build pipeline", intent.Raw)
+		return "", fmt.Errorf("unrecognized request %q; try: create a cluster, install redis, show me all pods, run the build pipeline", intent.Raw)
 	}
 }
 

@@ -68,7 +68,7 @@ func (m *Manager) CreateLocal(ctx context.Context, localPort int, remoteAddr str
 
 func (m *Manager) serve(ctx context.Context, t *Tunnel) {
 	defer close(t.done)
-	defer t.listener.Close()
+	defer func() { _ = t.listener.Close() }()
 
 	for {
 		conn, err := t.listener.Accept()
@@ -85,18 +85,18 @@ func (m *Manager) serve(ctx context.Context, t *Tunnel) {
 }
 
 func (m *Manager) handleConn(local net.Conn, remoteAddr string) {
-	defer local.Close()
+	defer func() { _ = local.Close() }()
 
 	remote, err := net.Dial("tcp", remoteAddr)
 	if err != nil {
 		return
 	}
-	defer remote.Close()
+	defer func() { _ = remote.Close() }()
 
 	var wg sync.WaitGroup
 	wg.Add(2)
-	go func() { defer wg.Done(); io.Copy(remote, local) }()
-	go func() { defer wg.Done(); io.Copy(local, remote) }()
+	go func() { defer wg.Done(); _, _ = io.Copy(remote, local) }()
+	go func() { defer wg.Done(); _, _ = io.Copy(local, remote) }()
 	wg.Wait()
 }
 
@@ -131,7 +131,7 @@ func (m *Manager) CreateCloudflared(ctx context.Context, localPort int, remoteAd
 		}()
 	}
 
-	go cmd.Run()
+	go func() { _ = cmd.Run() }()
 
 	return t, nil
 }

@@ -38,18 +38,18 @@ func New(dbPath string) (*Store, error) {
 	}
 
 	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("failed to enable foreign keys: %w", err)
 	}
 
 	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("failed to enable WAL mode: %w", err)
 	}
 
 	s := &Store{db: db}
 	if err := s.migrate(); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
 
@@ -270,7 +270,7 @@ func (s *Store) ListClusters(ctx context.Context) ([]storage.ClusterRecord, erro
 	if err != nil {
 		return nil, fmt.Errorf("listing clusters: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var clusters []storage.ClusterRecord
 	for rows.Next() {
@@ -369,7 +369,7 @@ func (s *Store) ListNodes(ctx context.Context, clusterName string) ([]storage.No
 	if err != nil {
 		return nil, fmt.Errorf("listing nodes for cluster %q: %w", clusterName, err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var nodes []storage.NodeRecord
 	for rows.Next() {
@@ -457,7 +457,7 @@ func (s *Store) ListNamespaces(ctx context.Context, clusterName string) ([]stora
 	if err != nil {
 		return nil, fmt.Errorf("listing namespaces for cluster %q: %w", clusterName, err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var namespaces []storage.NamespaceRecord
 	for rows.Next() {
@@ -587,7 +587,7 @@ func (s *Store) scanPods(ctx context.Context, query string, args ...any) ([]stor
 	if err != nil {
 		return nil, fmt.Errorf("listing pods: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var pods []storage.PodRecord
 	for rows.Next() {
@@ -707,7 +707,7 @@ func (s *Store) ListDeployments(ctx context.Context, clusterName, namespace stri
 	if err != nil {
 		return nil, fmt.Errorf("listing deployments for cluster %q: %w", clusterName, err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var deployments []storage.DeploymentRecord
 	for rows.Next() {
@@ -817,7 +817,7 @@ func (s *Store) ListServices(ctx context.Context, clusterName, namespace string)
 	if err != nil {
 		return nil, fmt.Errorf("listing services for cluster %q: %w", clusterName, err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var services []storage.ServiceRecord
 	for rows.Next() {
@@ -904,7 +904,7 @@ func (s *Store) scanEvents(ctx context.Context, query string, args ...any) ([]st
 	if err != nil {
 		return nil, fmt.Errorf("listing events: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var events []storage.EventRecord
 	for rows.Next() {
@@ -993,7 +993,7 @@ func (s *Store) ListAddons(ctx context.Context, clusterName string) ([]storage.A
 	if err != nil {
 		return nil, fmt.Errorf("listing addons for cluster %q: %w", clusterName, err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var addons []storage.AddonRecord
 	for rows.Next() {

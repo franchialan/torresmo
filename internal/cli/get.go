@@ -41,7 +41,7 @@ var getClustersCmd = &cobra.Command{
 		}
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-		fmt.Fprintln(w, "NAME\tRUNTIME\tPROFILE\tSTATUS\tNODES\tAGE")
+		_, _ = fmt.Fprintln(w, "NAME\tRUNTIME\tPROFILE\tSTATUS\tNODES\tAGE")
 		for _, c := range clusters {
 			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d/%d\t%s\n",
 				c.Name,
@@ -85,7 +85,7 @@ var getNodesCmd = &cobra.Command{
 		}
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-		fmt.Fprintln(w, "NAME\tROLE\tSTATUS\tADDRESS\tAGE")
+		_, _ = fmt.Fprintln(w, "NAME\tROLE\tSTATUS\tADDRESS\tAGE")
 		for _, n := range nodes {
 			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
 				n.Name,
@@ -130,7 +130,7 @@ var getPodsCmd = &cobra.Command{
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
 		if namespace == "" {
-			fmt.Fprintln(w, "NAMESPACE\tNAME\tIMAGE\tSTATUS\tNODE\tRESTARTS\tAGE")
+			_, _ = fmt.Fprintln(w, "NAMESPACE\tNAME\tIMAGE\tSTATUS\tNODE\tRESTARTS\tAGE")
 			for _, p := range pods {
 				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%d\t%s\n",
 					p.Namespace,
@@ -143,7 +143,7 @@ var getPodsCmd = &cobra.Command{
 				)
 			}
 		} else {
-			fmt.Fprintln(w, "NAME\tIMAGE\tSTATUS\tNODE\tRESTARTS\tAGE")
+			_, _ = fmt.Fprintln(w, "NAME\tIMAGE\tSTATUS\tNODE\tRESTARTS\tAGE")
 			for _, p := range pods {
 				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%s\n",
 					p.Name,
@@ -190,7 +190,7 @@ var getServicesCmd = &cobra.Command{
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
 		if namespace == "" {
-			fmt.Fprintln(w, "NAMESPACE\tNAME\tTYPE\tCLUSTER-IP\tPORTS\tAGE")
+			_, _ = fmt.Fprintln(w, "NAMESPACE\tNAME\tTYPE\tCLUSTER-IP\tPORTS\tAGE")
 			for _, s := range services {
 				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
 					s.Namespace,
@@ -202,7 +202,7 @@ var getServicesCmd = &cobra.Command{
 				)
 			}
 		} else {
-			fmt.Fprintln(w, "NAME\tTYPE\tCLUSTER-IP\tPORTS\tAGE")
+			_, _ = fmt.Fprintln(w, "NAME\tTYPE\tCLUSTER-IP\tPORTS\tAGE")
 			for _, s := range services {
 				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
 					s.Name,
@@ -248,7 +248,7 @@ var getDeploymentsCmd = &cobra.Command{
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
 		if namespace == "" {
-			fmt.Fprintln(w, "NAMESPACE\tNAME\tREADY\tSTATUS\tAGE")
+			_, _ = fmt.Fprintln(w, "NAMESPACE\tNAME\tREADY\tSTATUS\tAGE")
 			for _, d := range deployments {
 				fmt.Fprintf(w, "%s\t%s\t%d/%d\t%s\t%s\n",
 					d.Namespace,
@@ -260,7 +260,7 @@ var getDeploymentsCmd = &cobra.Command{
 				)
 			}
 		} else {
-			fmt.Fprintln(w, "NAME\tREADY\tSTATUS\tAGE")
+			_, _ = fmt.Fprintln(w, "NAME\tREADY\tSTATUS\tAGE")
 			for _, d := range deployments {
 				fmt.Fprintf(w, "%s\t%d/%d\t%s\t%s\n",
 					d.Name,
@@ -303,7 +303,7 @@ var getNamespacesCmd = &cobra.Command{
 		}
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-		fmt.Fprintln(w, "NAME\tSTATUS\tAGE")
+		_, _ = fmt.Fprintln(w, "NAME\tSTATUS\tAGE")
 		for _, ns := range namespaces {
 			fmt.Fprintf(w, "%s\t%s\t%s\n",
 				ns.Name,

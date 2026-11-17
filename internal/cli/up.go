@@ -42,7 +42,7 @@ var upCmd = &cobra.Command{
 			return fmt.Errorf("unexpected kind %q (expected Environment)", env.Kind)
 		}
 
-		clusterName := env.ObjectMeta.Name
+		clusterName := env.Name
 		if clusterName == "" {
 			return fmt.Errorf("environment name is required in metadata.name")
 		}

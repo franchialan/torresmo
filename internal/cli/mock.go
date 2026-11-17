@@ -291,9 +291,9 @@ var mockLogsCmd = &cobra.Command{
 			if err != nil {
 				return fmt.Errorf("getting mock logs: %w", err)
 			}
-			defer reader.Close()
+			defer func() { _ = reader.Close() }()
 
-			io.Copy(os.Stdout, reader)
+			_, _ = io.Copy(os.Stdout, reader)
 			return nil
 		}
 
@@ -301,7 +301,7 @@ var mockLogsCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("getting mock logs: %w", err)
 		}
-		defer reader.Close()
+		defer func() { _ = reader.Close() }()
 
 		_, err = io.Copy(os.Stdout, reader)
 		return err

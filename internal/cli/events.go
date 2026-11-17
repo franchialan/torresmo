@@ -103,7 +103,7 @@ func printEvents(events []storage.EventRecord, typeFilter string) {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(w, "TIMESTAMP\tTYPE\tKIND\tNAME\tREASON\tMESSAGE")
+	_, _ = fmt.Fprintln(w, "TIMESTAMP\tTYPE\tKIND\tNAME\tREASON\tMESSAGE")
 	for _, e := range events {
 		if typeFilter != "" && !strings.EqualFold(e.Type, typeFilter) {
 			continue
@@ -112,7 +112,7 @@ func printEvents(events []storage.EventRecord, typeFilter string) {
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
 			ts, e.Type, e.Kind, e.Name, e.Reason, e.Message)
 	}
-	w.Flush()
+	_ = w.Flush()
 }
 
 func init() {

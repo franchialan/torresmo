@@ -13,7 +13,7 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/errdefs"
+	"github.com/containerd/errdefs"
 	"github.com/docker/go-connections/nat"
 
 	"github.com/torresmo-dev/torresmo/internal/runtime"
@@ -387,7 +387,7 @@ func (c *Client) PullImage(ctx context.Context, img string) error {
 	if err != nil {
 		return fmt.Errorf("docker: failed to pull image %q: %w", img, err)
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	// Consume the response to completion so the pull finishes.
 	if _, err := io.Copy(io.Discard, reader); err != nil {

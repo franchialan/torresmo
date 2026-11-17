@@ -124,7 +124,7 @@ var shareImportCmd = &cobra.Command{
 			nodeCount += c
 		}
 
-		fmt.Printf("Environment: %s\n", env.ObjectMeta.Name)
+		fmt.Printf("Environment: %s\n", env.Name)
 		fmt.Printf("Profile:     %s\n", env.Spec.Cluster.Profile)
 		fmt.Printf("Nodes:       %d\n", nodeCount)
 		fmt.Println()

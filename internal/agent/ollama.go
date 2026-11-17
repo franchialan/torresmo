@@ -75,7 +75,7 @@ func (c *OllamaClient) Ping(ctx context.Context) error {
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("Ollama returned status %d", resp.StatusCode)
+		return fmt.Errorf("ollama returned status %d", resp.StatusCode)
 	}
 	return nil
 }
@@ -105,7 +105,7 @@ func (c *OllamaClient) Generate(ctx context.Context, prompt string) (string, err
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("Ollama generate returned status %d: %s", resp.StatusCode, string(respBody))
+		return "", fmt.Errorf("ollama generate returned status %d: %s", resp.StatusCode, string(respBody))
 	}
 
 	var result generateResponse
@@ -136,11 +136,11 @@ func (c *OllamaClient) Chat(ctx context.Context, messages []ChatMessage) (string
 	if err != nil {
 		return "", fmt.Errorf("calling Ollama chat: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("Ollama chat returned status %d: %s", resp.StatusCode, string(respBody))
+		return "", fmt.Errorf("ollama chat returned status %d: %s", resp.StatusCode, string(respBody))
 	}
 
 	var result chatResponse
@@ -172,11 +172,11 @@ func (c *OllamaClient) StreamChat(ctx context.Context, messages []ChatMessage, c
 	if err != nil {
 		return fmt.Errorf("calling Ollama stream chat: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("Ollama stream chat returned status %d: %s", resp.StatusCode, string(respBody))
+		return fmt.Errorf("ollama stream chat returned status %d: %s", resp.StatusCode, string(respBody))
 	}
 
 	scanner := bufio.NewScanner(resp.Body)
@@ -213,10 +213,10 @@ func (c *OllamaClient) ListModels(ctx context.Context) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("calling Ollama list models: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Ollama list models returned status %d", resp.StatusCode)
+		return nil, fmt.Errorf("ollama list models returned status %d", resp.StatusCode)
 	}
 
 	var result modelsResponse
