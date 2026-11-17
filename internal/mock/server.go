@@ -1,6 +1,7 @@
 package mock
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -100,10 +101,13 @@ func GenerateRoutesJSON(def *MockDefinition) (string, error) {
 func GeneratePythonServer(def *MockDefinition) string {
 	routesJSON, _ := GenerateRoutesJSON(def)
 
-	return fmt.Sprintf(`import json, http.server, time, re
+	// Base64-encode the routes JSON to avoid all escaping issues
+	encoded := base64.StdEncoding.EncodeToString([]byte(routesJSON))
 
-ROUTES = json.loads('%s')
-PORT = %d
+	return fmt.Sprintf(`import json, http.server, time, re, base64
+
+ROUTES = json.loads(base64.b64decode('%s').decode())
+PORT = %d`, encoded, def.Port) + `
 
 class MockHandler(http.server.BaseHTTPRequestHandler):
     def do_request(self):
@@ -141,7 +145,7 @@ class MockHandler(http.server.BaseHTTPRequestHandler):
 
 print(f'Mock server listening on port {PORT}')
 http.server.HTTPServer(('', PORT), MockHandler).serve_forever()
-`, strings.ReplaceAll(routesJSON, `'`, `\'`), def.Port)
+`
 }
 
 // MockInfo contains information about a running mock.
