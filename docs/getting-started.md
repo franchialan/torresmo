@@ -122,6 +122,24 @@ Create a `torresmo-env.yaml` in your project and share it with your team:
 torresmo up
 ```
 
+## Dashboard
+
+### Terminal (TUI)
+
+```bash
+torresmo dashboard
+```
+
+### Web Browser
+
+```bash
+torresmo dashboard --web
+# Opens http://localhost:9876 in your browser
+# Click on any pod to see logs and run commands
+```
+
+See [Dashboard](dashboard.md) for the full guide on live logs, in-browser terminal, and the dashboard API.
+
 ## Clean Up
 
 ```bash
@@ -135,6 +153,7 @@ torresmo cleanup --all
 ## Next Steps
 
 - [CLI Reference](cli-reference.md) — All available commands
+- [Dashboard](dashboard.md) — TUI and web dashboard with live logs
 - [Torresmofile Guide](torresmofile.md) — Pipeline configuration
 - [Addons](addons.md) — Available addons and configuration
 - [Dev Mode](dev-mode.md) — Hot reload for development

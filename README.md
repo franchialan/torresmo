@@ -338,6 +338,7 @@ torresmo delete cluster dev
 
 - [Getting Started](docs/getting-started.md)
 - [CLI Reference](docs/cli-reference.md)
+- [Dashboard](docs/dashboard.md)
 - [Torresmofile Guide](docs/torresmofile.md)
 - [Addons](docs/addons.md)
 
