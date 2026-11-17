@@ -43,3 +43,17 @@ jobs:
 
       - name: Run golangci-lint
         run: golangci-lint run
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run E2E tests
+        run: go test -tags=e2e -v -count=1 ./internal/e2e/
