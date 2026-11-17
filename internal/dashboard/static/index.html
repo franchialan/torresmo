@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🐷 Torresmo Dashboard</title>
+    <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg: #0d1117;
+            --card-bg: #161b22;
+            --card-border: #30363d;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --green: #3fb950;
+            --yellow: #d29922;
+            --red: #f85149;
+            --blue: #58a6ff;
+            --purple: #bc8cff;
+            --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            --font-mono: "SF Mono", "Cascadia Code", Consolas, "Liberation Mono", Menlo, monospace;
+            --radius: 8px;
+            --transition: 0.2s ease;
+        }
+
+        html {
+            font-size: 14px;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg);
+            color: var(--text-primary);
+            line-height: 1.5;
+            min-height: 100vh;
+        }
+
+        #app {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 24px 48px;
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--card-border);
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-logo {
+            font-size: 28px;
+            line-height: 1;
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .connection-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            transition: background var(--transition);
+        }
+
+        .connection-dot.disconnected {
+            background: var(--red);
+            animation: pulse-red 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse-red {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .cluster-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 6px 14px;
+            font-size: 13px;
+        }
+
+        .cluster-name {
+            font-weight: 600;
+            color: var(--blue);
+        }
+
+        /* Stat Cards */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        @media (max-width: 768px) {
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stats {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius);
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            transition: border-color var(--transition), transform var(--transition);
+        }
+
+        .stat-card:hover {
+            border-color: var(--text-secondary);
+            transform: translateY(-1px);
+        }
+
+        .stat-icon {
+            font-size: 28px;
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius);
+            flex-shrink: 0;
+        }
+
+        .stat-icon.nodes { background: rgba(63, 185, 80, 0.1); }
+        .stat-icon.pods { background: rgba(88, 166, 255, 0.1); }
+        .stat-icon.services { background: rgba(210, 153, 34, 0.1); }
+        .stat-icon.addons { background: rgba(188, 140, 255, 0.1); }
+
+        .stat-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            line-height: 1.2;
+            transition: opacity var(--transition);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+        }
+
+        .stat-sub {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        /* Sections */
+        .section {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius);
+            margin-bottom: 16px;
+            overflow: hidden;
+            transition: opacity 0.15s ease;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-count {
+            font-size: 11px;
+            color: var(--text-secondary);
+            background: rgba(139, 148, 158, 0.15);
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 500;
+        }
+
+        /* Tables */
+        .table-wrap {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        thead th {
+            text-align: left;
+            padding: 10px 16px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--card-border);
+            white-space: nowrap;
+            position: sticky;
+            top: 0;
+            background: var(--card-bg);
+        }
+
+        tbody tr {
+            transition: background var(--transition);
+        }
+
+        tbody tr:hover {
+            background: rgba(139, 148, 158, 0.04);
+        }
+
+        tbody td {
+            padding: 10px 16px;
+            border-bottom: 1px solid rgba(48, 54, 61, 0.5);
+            white-space: nowrap;
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .mono {
+            font-family: var(--font-mono);
+            font-size: 12px;
+        }
+
+        /* Status badges */
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 500;
+            font-size: 12px;
+        }
+
+        .status-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .status-running .status-dot,
+        .status-active .status-dot { background: var(--green); }
+        .status-running, .status-active { color: var(--green); }
+
+        .status-pending .status-dot,
+        .status-warning .status-dot { background: var(--yellow); }
+        .status-pending, .status-warning { color: var(--yellow); }
+
+        .status-failed .status-dot,
+        .status-error .status-dot,
+        .status-crashloopbackoff .status-dot { background: var(--red); }
+        .status-failed, .status-error, .status-crashloopbackoff { color: var(--red); }
+
+        .status-succeeded .status-dot,
+        .status-completed .status-dot { background: var(--blue); }
+        .status-succeeded, .status-completed { color: var(--blue); }
+
+        .status-terminating .status-dot { background: var(--yellow); }
+        .status-terminating { color: var(--yellow); }
+
+        .status-unknown .status-dot { background: var(--text-secondary); }
+        .status-unknown { color: var(--text-secondary); }
+
+        /* Namespace badge */
+        .ns-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+            font-family: var(--font-mono);
+        }
+
+        .ns-default { background: rgba(88, 166, 255, 0.12); color: var(--blue); }
+        .ns-kube-system { background: rgba(210, 153, 34, 0.12); color: var(--yellow); }
+        .ns-kube-public { background: rgba(188, 140, 255, 0.12); color: var(--purple); }
+        .ns-other { background: rgba(63, 185, 80, 0.12); color: var(--green); }
+
+        /* Role badge */
+        .role-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .role-control-plane {
+            background: rgba(188, 140, 255, 0.12);
+            color: var(--purple);
+        }
+
+        .role-worker {
+            background: rgba(88, 166, 255, 0.12);
+            color: var(--blue);
+        }
+
+        /* Service type badge */
+        .svc-type {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .svc-ClusterIP { background: rgba(88, 166, 255, 0.12); color: var(--blue); }
+        .svc-NodePort { background: rgba(210, 153, 34, 0.12); color: var(--yellow); }
+        .svc-LoadBalancer { background: rgba(63, 185, 80, 0.12); color: var(--green); }
+        .svc-ExternalName { background: rgba(188, 140, 255, 0.12); color: var(--purple); }
+
+        /* Event type */
+        .event-type {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .event-Normal { background: rgba(88, 166, 255, 0.12); color: var(--blue); }
+        .event-Warning { background: rgba(210, 153, 34, 0.12); color: var(--yellow); }
+        .event-Error { background: rgba(248, 81, 73, 0.12); color: var(--red); }
+
+        /* Addon version badge */
+        .addon-version {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-family: var(--font-mono);
+            background: rgba(188, 140, 255, 0.12);
+            color: var(--purple);
+        }
+
+        /* Restarts */
+        .restarts-warn {
+            color: var(--yellow);
+            font-weight: 600;
+        }
+
+        .restarts-crit {
+            color: var(--red);
+            font-weight: 600;
+        }
+
+        /* Events section */
+        .event-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 10px 20px;
+            border-bottom: 1px solid rgba(48, 54, 61, 0.5);
+            transition: background var(--transition);
+            font-size: 13px;
+        }
+
+        .event-row:last-child {
+            border-bottom: none;
+        }
+
+        .event-row:hover {
+            background: rgba(139, 148, 158, 0.04);
+        }
+
+        .event-time {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--text-secondary);
+            flex-shrink: 0;
+            min-width: 64px;
+        }
+
+        .event-kind {
+            color: var(--text-secondary);
+            flex-shrink: 0;
+            min-width: 48px;
+            font-size: 12px;
+        }
+
+        .event-name {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--text-primary);
+            flex-shrink: 0;
+            min-width: 120px;
+        }
+
+        .event-reason {
+            font-weight: 500;
+            flex-shrink: 0;
+            min-width: 80px;
+        }
+
+        .event-message {
+            color: var(--text-secondary);
+            white-space: normal;
+            word-break: break-word;
+        }
+
+        /* Footer */
+        footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 0;
+            border-top: 1px solid var(--card-border);
+            margin-top: 8px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .footer-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .footer-powered {
+            color: var(--text-secondary);
+        }
+
+        .footer-powered span {
+            color: var(--purple);
+            font-weight: 600;
+        }
+
+        /* Loading state */
+        .loading-shimmer {
+            background: linear-gradient(90deg, var(--card-bg) 25%, rgba(48, 54, 61, 0.6) 50%, var(--card-bg) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s ease-in-out infinite;
+            border-radius: 4px;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .empty-state {
+            padding: 32px 20px;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--card-border);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            #app {
+                padding: 0 12px 32px;
+            }
+
+            header {
+                padding: 16px 0;
+            }
+
+            .header-title {
+                font-size: 16px;
+            }
+
+            .section-header {
+                padding: 12px 14px;
+            }
+
+            thead th, tbody td {
+                padding: 8px 10px;
+            }
+
+            .event-row {
+                padding: 8px 14px;
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <header>
+            <div class="header-left">
+                <span class="header-logo">🐷</span>
+                <span class="header-title">Torresmo Dashboard</span>
+            </div>
+            <div class="header-right">
+                <div class="connection-status">
+                    <div class="connection-dot" id="connection-dot"></div>
+                    <span id="connection-text">Connecting…</span>
+                </div>
+                <div class="cluster-badge" id="cluster-badge">
+                    <span class="cluster-name" id="cluster-name">—</span>
+                    <span id="cluster-status"></span>
+                </div>
+            </div>
+        </header>
+
+        <div class="stats" id="stats">
+            <div class="stat-card">
+                <div class="stat-icon nodes">🖥️</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="stat-nodes">—</div>
+                    <div class="stat-label">Nodes</div>
+                    <div class="stat-sub" id="stat-nodes-sub"></div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon pods">📦</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="stat-pods">—</div>
+                    <div class="stat-label">Pods</div>
+                    <div class="stat-sub" id="stat-pods-sub"></div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon services">🔌</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="stat-services">—</div>
+                    <div class="stat-label">Services</div>
+                    <div class="stat-sub" id="stat-services-sub"></div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon addons">🧩</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="stat-addons">—</div>
+                    <div class="stat-label">Addons</div>
+                    <div class="stat-sub" id="stat-addons-sub"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section" id="nodes-section">
+            <div class="section-header">
+                <div class="section-title">🖥️ Nodes <span class="section-count" id="nodes-count">0</span></div>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Role</th>
+                            <th>Status</th>
+                            <th>Address</th>
+                        </tr>
+                    </thead>
+                    <tbody id="nodes-body">
+                        <tr><td colspan="4" class="empty-state">Loading…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section" id="pods-section">
+            <div class="section-header">
+                <div class="section-title">📦 Pods <span class="section-count" id="pods-count">0</span></div>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Namespace</th>
+                            <th>Name</th>
+                            <th>Image</th>
+                            <th>Status</th>
+                            <th>Node</th>
+                            <th>Restarts</th>
+                            <th>Pod IP</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pods-body">
+                        <tr><td colspan="7" class="empty-state">Loading…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section" id="services-section">
+            <div class="section-header">
+                <div class="section-title">🔌 Services <span class="section-count" id="services-count">0</span></div>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Namespace</th>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>Cluster IP</th>
+                            <th>Ports</th>
+                        </tr>
+                    </thead>
+                    <tbody id="services-body">
+                        <tr><td colspan="5" class="empty-state">Loading…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section" id="addons-section">
+            <div class="section-header">
+                <div class="section-title">🧩 Addons <span class="section-count" id="addons-count">0</span></div>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Namespace</th>
+                            <th>Version</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="addons-body">
+                        <tr><td colspan="4" class="empty-state">Loading…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section" id="events-section">
+            <div class="section-header">
+                <div class="section-title">📋 Recent Events <span class="section-count" id="events-count">0</span></div>
+            </div>
+            <div id="events-body">
+                <div class="empty-state">Loading…</div>
+            </div>
+        </div>
+
+        <footer>
+            <div class="footer-left">
+                <span id="last-updated">Last updated: —</span>
+                <span>•</span>
+                <span>Auto-refresh: 3s</span>
+            </div>
+            <div class="footer-powered">Powered by <span>Torresmo</span> 🐷</div>
+        </footer>
+    </div>
+
+    <script>
+        const REFRESH_INTERVAL = 3000;
+        let connected = false;
+        let lastData = null;
+
+        const $ = (id) => document.getElementById(id);
+
+        function setConnected(ok) {
+            const dot = $('connection-dot');
+            const text = $('connection-text');
+            if (ok) {
+                dot.classList.remove('disconnected');
+                text.textContent = 'Connected';
+                connected = true;
+            } else {
+                dot.classList.add('disconnected');
+                text.textContent = 'Disconnected';
+                connected = false;
+            }
+        }
+
+        function statusBadge(phase) {
+            if (!phase) phase = 'Unknown';
+            const cls = 'status-' + phase.toLowerCase().replace(/\s+/g, '');
+            return '<span class="status ' + cls + '"><span class="status-dot"></span>' + escapeHtml(phase) + '</span>';
+        }
+
+        function escapeHtml(str) {
+            if (str == null) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function nsBadge(ns) {
+            let cls = 'ns-other';
+            if (ns === 'default') cls = 'ns-default';
+            else if (ns === 'kube-system') cls = 'ns-kube-system';
+            else if (ns === 'kube-public' || ns === 'kube-node-lease') cls = 'ns-kube-public';
+            return '<span class="ns-badge ' + cls + '">' + escapeHtml(ns) + '</span>';
+        }
+
+        function roleBadge(role) {
+            const display = role || 'worker';
+            const cls = display.includes('control-plane') ? 'role-control-plane' : 'role-worker';
+            return '<span class="role-badge ' + cls + '">' + escapeHtml(display) + '</span>';
+        }
+
+        function svcTypeBadge(type) {
+            const cls = 'svc-' + (type || 'ClusterIP');
+            return '<span class="svc-type ' + cls + '">' + escapeHtml(type) + '</span>';
+        }
+
+        function eventTypeBadge(type) {
+            const cls = 'event-' + (type || 'Normal');
+            return '<span class="event-type ' + cls + '">' + escapeHtml(type) + '</span>';
+        }
+
+        function restartsBadge(count) {
+            if (count == null) count = 0;
+            if (count >= 10) return '<span class="restarts-crit">' + count + '</span>';
+            if (count >= 3) return '<span class="restarts-warn">' + count + '</span>';
+            return String(count);
+        }
+
+        function renderDashboard(data) {
+            // Cluster header
+            const cluster = data.cluster || {};
+            $('cluster-name').textContent = cluster.name || '—';
+            $('cluster-status').innerHTML = statusBadge(cluster.phase);
+
+            // Stat cards
+            const nodes = data.nodes || [];
+            const pods = data.pods || [];
+            const services = data.services || [];
+            const addons = data.addons || [];
+            const events = data.events || [];
+
+            const readyNodes = cluster.readyNodes != null ? cluster.readyNodes : nodes.filter(function(n) { return n.phase === 'Running' || n.phase === 'Ready'; }).length;
+
+            $('stat-nodes').textContent = nodes.length;
+            $('stat-nodes-sub').textContent = readyNodes + '/' + nodes.length + ' ready';
+
+            const runningPods = pods.filter(function(p) { return p.phase === 'Running' || p.phase === 'Succeeded'; }).length;
+            $('stat-pods').textContent = pods.length;
+            $('stat-pods-sub').textContent = runningPods + ' running';
+
+            $('stat-services').textContent = services.length;
+            const svcTypes = {};
+            services.forEach(function(s) { svcTypes[s.type] = (svcTypes[s.type] || 0) + 1; });
+            const svcSummary = Object.keys(svcTypes).map(function(t) { return svcTypes[t] + ' ' + t; }).join(', ');
+            $('stat-services-sub').textContent = svcSummary || '';
+
+            $('stat-addons').textContent = addons.length;
+            const runningAddons = addons.filter(function(a) { return a.phase === 'Running'; }).length;
+            $('stat-addons-sub').textContent = runningAddons + ' running';
+
+            // Nodes table
+            $('nodes-count').textContent = nodes.length;
+            if (nodes.length === 0) {
+                $('nodes-body').innerHTML = '<tr><td colspan="4" class="empty-state">No nodes found</td></tr>';
+            } else {
+                $('nodes-body').innerHTML = nodes.map(function(n) {
+                    return '<tr>' +
+                        '<td class="mono">' + escapeHtml(n.name) + '</td>' +
+                        '<td>' + roleBadge(n.role) + '</td>' +
+                        '<td>' + statusBadge(n.phase) + '</td>' +
+                        '<td class="mono">' + escapeHtml(n.address) + '</td>' +
+                        '</tr>';
+                }).join('');
+            }
+
+            // Pods table
+            $('pods-count').textContent = pods.length;
+            if (pods.length === 0) {
+                $('pods-body').innerHTML = '<tr><td colspan="7" class="empty-state">No pods found</td></tr>';
+            } else {
+                $('pods-body').innerHTML = pods.map(function(p) {
+                    return '<tr>' +
+                        '<td>' + nsBadge(p.namespace) + '</td>' +
+                        '<td class="mono">' + escapeHtml(p.name) + '</td>' +
+                        '<td class="mono">' + escapeHtml(p.image) + '</td>' +
+                        '<td>' + statusBadge(p.phase) + '</td>' +
+                        '<td class="mono">' + escapeHtml(p.node) + '</td>' +
+                        '<td>' + restartsBadge(p.restarts) + '</td>' +
+                        '<td class="mono">' + escapeHtml(p.podIP) + '</td>' +
+                        '</tr>';
+                }).join('');
+            }
+
+            // Services table
+            $('services-count').textContent = services.length;
+            if (services.length === 0) {
+                $('services-body').innerHTML = '<tr><td colspan="5" class="empty-state">No services found</td></tr>';
+            } else {
+                $('services-body').innerHTML = services.map(function(s) {
+                    return '<tr>' +
+                        '<td>' + nsBadge(s.namespace) + '</td>' +
+                        '<td class="mono">' + escapeHtml(s.name) + '</td>' +
+                        '<td>' + svcTypeBadge(s.type) + '</td>' +
+                        '<td class="mono">' + escapeHtml(s.clusterIP) + '</td>' +
+                        '<td class="mono">' + escapeHtml(s.ports) + '</td>' +
+                        '</tr>';
+                }).join('');
+            }
+
+            // Addons table
+            $('addons-count').textContent = addons.length;
+            if (addons.length === 0) {
+                $('addons-body').innerHTML = '<tr><td colspan="4" class="empty-state">No addons found</td></tr>';
+            } else {
+                $('addons-body').innerHTML = addons.map(function(a) {
+                    return '<tr>' +
+                        '<td class="mono">' + escapeHtml(a.name) + '</td>' +
+                        '<td>' + nsBadge(a.namespace) + '</td>' +
+                        '<td><span class="addon-version">' + escapeHtml(a.version) + '</span></td>' +
+                        '<td>' + statusBadge(a.phase) + '</td>' +
+                        '</tr>';
+                }).join('');
+            }
+
+            // Events
+            $('events-count').textContent = events.length;
+            if (events.length === 0) {
+                $('events-body').innerHTML = '<div class="empty-state">No recent events</div>';
+            } else {
+                $('events-body').innerHTML = events.map(function(e) {
+                    return '<div class="event-row">' +
+                        '<span class="event-time">' + escapeHtml(e.time) + '</span>' +
+                        eventTypeBadge(e.type) +
+                        '<span class="event-kind">' + escapeHtml(e.kind) + '</span>' +
+                        '<span class="event-name">' + escapeHtml(e.name) + '</span>' +
+                        '<span class="event-reason">' + escapeHtml(e.reason) + '</span>' +
+                        '<span class="event-message">' + escapeHtml(e.message) + '</span>' +
+                        '</div>';
+                }).join('');
+            }
+
+            // Timestamp
+            var ts = data.timestamp;
+            var timeStr = '—';
+            if (ts) {
+                try {
+                    var d = new Date(ts);
+                    timeStr = d.toLocaleTimeString();
+                } catch (e) {
+                    timeStr = ts;
+                }
+            }
+            $('last-updated').textContent = 'Last updated: ' + timeStr;
+        }
+
+        async function fetchData() {
+            try {
+                var res = await fetch('/api/overview');
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                var data = await res.json();
+                lastData = data;
+                setConnected(true);
+                renderDashboard(data);
+            } catch (err) {
+                console.error('Failed to fetch data:', err);
+                setConnected(false);
+            }
+        }
+
+        fetchData();
+        setInterval(fetchData, REFRESH_INTERVAL);
+    </script>
+</body>
+</html>

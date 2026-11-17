@@ -5,7 +5,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
+	goruntime "runtime"
 	"syscall"
 	"text/tabwriter"
 	"time"
@@ -13,25 +15,24 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/torresmo-dev/torresmo/internal/cluster"
+	"github.com/torresmo-dev/torresmo/internal/dashboard"
 	"github.com/torresmo-dev/torresmo/internal/orchestrator"
 )
 
 var dashboardCmd = &cobra.Command{
 	Use:   "dashboard",
-	Short: "Open the Torresmo dashboard (TUI)",
+	Short: "Open the Torresmo dashboard (TUI or web)",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		clusterFlag, _ := cmd.Flags().GetString("cluster")
-		refresh, _ := cmd.Flags().GetInt("refresh")
-		if refresh < 1 {
-			refresh = 2
-		}
+		webMode, _ := cmd.Flags().GetBool("web")
+		port, _ := cmd.Flags().GetInt("port")
 
 		clusterName, err := resolveCluster(clusterFlag)
 		if err != nil {
 			return err
 		}
 
-		mgr, _, err := initDeps()
+		mgr, store, err := initDeps()
 		if err != nil {
 			return err
 		}
@@ -43,6 +44,29 @@ var dashboardCmd = &cobra.Command{
 
 		ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 		defer cancel()
+
+		if webMode {
+			addr := fmt.Sprintf(":%d", port)
+			srv := dashboard.NewServer(mgr, o, store, clusterName, addr)
+
+			url := fmt.Sprintf("http://localhost:%d", port)
+			fmt.Printf("🐷 Torresmo Dashboard (web) → %s\n", url)
+
+			// Try to open the browser automatically.
+			go openBrowser(url)
+
+			if err := srv.Start(ctx); err != nil && ctx.Err() == nil {
+				return err
+			}
+			fmt.Println("\nDashboard closed.")
+			return nil
+		}
+
+		// TUI mode (default)
+		refresh, _ := cmd.Flags().GetInt("refresh")
+		if refresh < 1 {
+			refresh = 2
+		}
 
 		go func() {
 			scanner := bufio.NewScanner(os.Stdin)
@@ -70,6 +94,19 @@ var dashboardCmd = &cobra.Command{
 			}
 		}
 	},
+}
+
+func openBrowser(url string) {
+	var cmd *exec.Cmd
+	switch goruntime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", url)
+	case "linux":
+		cmd = exec.Command("xdg-open", url)
+	default:
+		return
+	}
+	_ = cmd.Start()
 }
 
 func renderDashboard(ctx context.Context, clusterName string, mgr *cluster.Manager, o *orchestrator.Orchestrator) {
@@ -146,5 +183,7 @@ func renderDashboard(ctx context.Context, clusterName string, mgr *cluster.Manag
 func init() {
 	dashboardCmd.Flags().String("cluster", "", "Cluster name")
 	dashboardCmd.Flags().Int("refresh", 2, "Refresh interval in seconds")
+	dashboardCmd.Flags().Bool("web", false, "Open web dashboard in browser")
+	dashboardCmd.Flags().Int("port", 9876, "Web dashboard port")
 	addCommand(dashboardCmd)
 }
