@@ -201,6 +201,42 @@ func (s *Store) migrate() error {
 	if _, err := s.db.Exec(addonsTable); err != nil {
 		return fmt.Errorf("creating addons table: %w", err)
 	}
+
+	const pipelineRunsTable = `
+		CREATE TABLE IF NOT EXISTS pipeline_runs (
+			id TEXT PRIMARY KEY,
+			cluster_name TEXT NOT NULL DEFAULT '',
+			status TEXT NOT NULL DEFAULT 'running',
+			started_at INTEGER NOT NULL,
+			finished_at INTEGER NOT NULL DEFAULT 0,
+			total_targets INTEGER NOT NULL DEFAULT 0,
+			passed_targets INTEGER NOT NULL DEFAULT 0,
+			failed_targets INTEGER NOT NULL DEFAULT 0,
+			file TEXT NOT NULL DEFAULT 'Torresmofile',
+			target_filter TEXT NOT NULL DEFAULT ''
+		);`
+
+	const pipelineTargetsTable = `
+		CREATE TABLE IF NOT EXISTS pipeline_targets (
+			run_id TEXT NOT NULL,
+			name TEXT NOT NULL,
+			status TEXT NOT NULL DEFAULT 'pending',
+			started_at INTEGER NOT NULL DEFAULT 0,
+			finished_at INTEGER NOT NULL DEFAULT 0,
+			duration INTEGER NOT NULL DEFAULT 0,
+			error TEXT NOT NULL DEFAULT '',
+			output TEXT NOT NULL DEFAULT '',
+			PRIMARY KEY (run_id, name),
+			FOREIGN KEY (run_id) REFERENCES pipeline_runs(id) ON DELETE CASCADE
+		);`
+
+	if _, err := s.db.Exec(pipelineRunsTable); err != nil {
+		return fmt.Errorf("creating pipeline_runs table: %w", err)
+	}
+	if _, err := s.db.Exec(pipelineTargetsTable); err != nil {
+		return fmt.Errorf("creating pipeline_targets table: %w", err)
+	}
+
 	return nil
 }
 
@@ -1024,6 +1060,172 @@ func (s *Store) DeleteAddon(ctx context.Context, clusterName, namespace, name st
 		return fmt.Errorf("deleting addon %q in cluster %q namespace %q: %w", name, clusterName, namespace, err)
 	}
 	return nil
+}
+
+// --- Pipeline operations ---
+
+func (s *Store) SavePipelineRun(ctx context.Context, run *storage.PipelineRunRecord) error {
+	const q = `
+		INSERT INTO pipeline_runs
+			(id, cluster_name, status, started_at, finished_at, total_targets, passed_targets, failed_targets, file, target_filter)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			status = excluded.status,
+			finished_at = excluded.finished_at,
+			total_targets = excluded.total_targets,
+			passed_targets = excluded.passed_targets,
+			failed_targets = excluded.failed_targets`
+
+	_, err := s.db.ExecContext(ctx, q,
+		run.ID,
+		run.ClusterName,
+		run.Status,
+		run.StartedAt,
+		run.FinishedAt,
+		run.TotalTargets,
+		run.PassedTargets,
+		run.FailedTargets,
+		run.File,
+		run.TargetFilter,
+	)
+	if err != nil {
+		return fmt.Errorf("saving pipeline run %q: %w", run.ID, err)
+	}
+	return nil
+}
+
+func (s *Store) GetPipelineRun(ctx context.Context, id string) (*storage.PipelineRunRecord, error) {
+	const q = `
+		SELECT id, cluster_name, status, started_at, finished_at, total_targets, passed_targets, failed_targets, file, target_filter
+		FROM pipeline_runs WHERE id = ?`
+
+	var r storage.PipelineRunRecord
+	err := s.db.QueryRowContext(ctx, q, id).Scan(
+		&r.ID,
+		&r.ClusterName,
+		&r.Status,
+		&r.StartedAt,
+		&r.FinishedAt,
+		&r.TotalTargets,
+		&r.PassedTargets,
+		&r.FailedTargets,
+		&r.File,
+		&r.TargetFilter,
+	)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("pipeline run %q not found", id)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("getting pipeline run %q: %w", id, err)
+	}
+	return &r, nil
+}
+
+func (s *Store) ListPipelineRuns(ctx context.Context, limit int) ([]storage.PipelineRunRecord, error) {
+	const q = `
+		SELECT id, cluster_name, status, started_at, finished_at, total_targets, passed_targets, failed_targets, file, target_filter
+		FROM pipeline_runs ORDER BY started_at DESC LIMIT ?`
+
+	rows, err := s.db.QueryContext(ctx, q, limit)
+	if err != nil {
+		return nil, fmt.Errorf("listing pipeline runs: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var runs []storage.PipelineRunRecord
+	for rows.Next() {
+		var r storage.PipelineRunRecord
+		if err := rows.Scan(
+			&r.ID,
+			&r.ClusterName,
+			&r.Status,
+			&r.StartedAt,
+			&r.FinishedAt,
+			&r.TotalTargets,
+			&r.PassedTargets,
+			&r.FailedTargets,
+			&r.File,
+			&r.TargetFilter,
+		); err != nil {
+			return nil, fmt.Errorf("scanning pipeline run row: %w", err)
+		}
+		runs = append(runs, r)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating pipeline run rows: %w", err)
+	}
+	return runs, nil
+}
+
+func (s *Store) DeletePipelineRun(ctx context.Context, id string) error {
+	_, err := s.db.ExecContext(ctx, "DELETE FROM pipeline_runs WHERE id = ?", id)
+	if err != nil {
+		return fmt.Errorf("deleting pipeline run %q: %w", id, err)
+	}
+	return nil
+}
+
+func (s *Store) SavePipelineTarget(ctx context.Context, target *storage.PipelineTargetRecord) error {
+	const q = `
+		INSERT INTO pipeline_targets
+			(run_id, name, status, started_at, finished_at, duration, error, output)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(run_id, name) DO UPDATE SET
+			status = excluded.status,
+			started_at = excluded.started_at,
+			finished_at = excluded.finished_at,
+			duration = excluded.duration,
+			error = excluded.error,
+			output = excluded.output`
+
+	_, err := s.db.ExecContext(ctx, q,
+		target.RunID,
+		target.Name,
+		target.Status,
+		target.StartedAt,
+		target.FinishedAt,
+		target.Duration,
+		target.Error,
+		target.Output,
+	)
+	if err != nil {
+		return fmt.Errorf("saving pipeline target %q for run %q: %w", target.Name, target.RunID, err)
+	}
+	return nil
+}
+
+func (s *Store) ListPipelineTargets(ctx context.Context, runID string) ([]storage.PipelineTargetRecord, error) {
+	const q = `
+		SELECT run_id, name, status, started_at, finished_at, duration, error, output
+		FROM pipeline_targets WHERE run_id = ? ORDER BY started_at`
+
+	rows, err := s.db.QueryContext(ctx, q, runID)
+	if err != nil {
+		return nil, fmt.Errorf("listing pipeline targets for run %q: %w", runID, err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var targets []storage.PipelineTargetRecord
+	for rows.Next() {
+		var t storage.PipelineTargetRecord
+		if err := rows.Scan(
+			&t.RunID,
+			&t.Name,
+			&t.Status,
+			&t.StartedAt,
+			&t.FinishedAt,
+			&t.Duration,
+			&t.Error,
+			&t.Output,
+		); err != nil {
+			return nil, fmt.Errorf("scanning pipeline target row: %w", err)
+		}
+		targets = append(targets, t)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating pipeline target rows: %w", err)
+	}
+	return targets, nil
 }
 
 func (s *Store) Close() error {

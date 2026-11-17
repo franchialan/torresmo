@@ -558,6 +558,145 @@
                 flex-wrap: wrap;
             }
         }
+
+        /* Live pipeline progress */
+        .live-pipeline {
+            background: #1c2333;
+            border: 1px solid var(--blue);
+            border-radius: var(--radius);
+            padding: 16px 20px;
+            margin-bottom: 16px;
+        }
+
+        .live-pipeline.hidden {
+            display: none;
+        }
+
+        .live-pipeline-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .live-pipeline-header h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--blue);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .live-pipeline-stats {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .live-progress {
+            width: 100%;
+            height: 4px;
+            background: var(--card-border);
+            border-radius: 2px;
+            margin-bottom: 12px;
+            overflow: hidden;
+        }
+
+        .live-progress-bar {
+            height: 100%;
+            background: var(--green);
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+
+        .live-progress-bar.has-failures {
+            background: linear-gradient(90deg, var(--green), var(--green) var(--pass-pct), var(--red) var(--pass-pct));
+        }
+
+        .live-targets {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        .live-target {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(48, 54, 61, 0.5);
+            font-size: 13px;
+        }
+
+        .live-target:last-child {
+            border-bottom: none;
+        }
+
+        .live-icon {
+            flex-shrink: 0;
+            width: 20px;
+            text-align: center;
+        }
+
+        .live-name {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--text-primary);
+            min-width: 120px;
+        }
+
+        .live-status {
+            font-size: 12px;
+            font-weight: 500;
+            min-width: 60px;
+        }
+
+        .live-duration {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .live-error {
+            font-size: 11px;
+            color: var(--red);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 300px;
+        }
+
+        .spinner {
+            display: inline-block;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Pipeline status badges */
+        .pipeline-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 500;
+            font-size: 12px;
+        }
+
+        .pipeline-status-success { color: var(--green); }
+        .pipeline-status-failed { color: var(--red); }
+        .pipeline-status-running { color: var(--blue); }
+        .pipeline-status-cancelled { color: var(--yellow); }
+        .pipeline-status-pending { color: var(--text-secondary); }
+
+        .target-summary {
+            font-size: 12px;
+        }
+
+        .target-passed { color: var(--green); }
+        .target-failed { color: var(--red); font-weight: 600; }
     </style>
 </head>
 <body>
@@ -612,6 +751,17 @@
                     <div class="stat-sub" id="stat-addons-sub"></div>
                 </div>
             </div>
+        </div>
+
+        <div class="live-pipeline hidden" id="live-pipeline">
+            <div class="live-pipeline-header">
+                <h3><span class="spinner">⟳</span> Pipeline Running</h3>
+                <span class="live-pipeline-stats" id="live-pipeline-stats"></span>
+            </div>
+            <div class="live-progress">
+                <div class="live-progress-bar" id="live-progress-bar" style="width: 0%"></div>
+            </div>
+            <div class="live-targets" id="live-targets"></div>
         </div>
 
         <div class="section" id="nodes-section">
@@ -697,6 +847,28 @@
                     </thead>
                     <tbody id="addons-body">
                         <tr><td colspan="4" class="empty-state">Loading…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section" id="pipelines-section">
+            <div class="section-header">
+                <div class="section-title">🔧 Pipelines <span class="section-count" id="pipelines-count">0</span></div>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th>Started</th>
+                            <th>Duration</th>
+                            <th>Targets</th>
+                            <th>File</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pipelines-body">
+                        <tr><td colspan="5" class="empty-state">Loading…</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -901,6 +1073,9 @@
                 }).join('');
             }
 
+            // Pipelines
+            renderPipelines(data.pipelines || []);
+
             // Timestamp
             var ts = data.timestamp;
             var timeStr = '—';
@@ -914,6 +1089,136 @@
             }
             $('last-updated').textContent = 'Last updated: ' + timeStr;
         }
+
+        function renderPipelines(pipelines) {
+            var tbody = $('pipelines-body');
+            var count = $('pipelines-count');
+            count.textContent = pipelines.length;
+
+            if (pipelines.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No pipeline runs</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = pipelines.map(function(p) {
+                var statusIcon = p.status === 'success' ? '✅' :
+                                 p.status === 'failed' ? '❌' :
+                                 p.status === 'running' ? '🔄' : '⏳';
+                var statusCls = 'pipeline-status pipeline-status-' + (p.status || 'pending');
+                var targets = '<span class="target-passed">' + p.passedTargets + '/' + p.totalTargets + ' passed</span>';
+                if (p.failedTargets > 0) {
+                    targets += ', <span class="target-failed">' + p.failedTargets + ' failed</span>';
+                }
+                return '<tr>' +
+                    '<td><span class="' + statusCls + '">' + statusIcon + ' ' + escapeHtml(p.status) + '</span></td>' +
+                    '<td class="mono">' + escapeHtml(p.startedAt) + '</td>' +
+                    '<td class="mono">' + escapeHtml(p.duration) + '</td>' +
+                    '<td class="target-summary">' + targets + '</td>' +
+                    '<td class="mono">' + escapeHtml(p.file) + '</td>' +
+                    '</tr>';
+            }).join('');
+
+            // Show/hide live section based on whether any pipeline is currently running
+            var hasRunning = pipelines.some(function(p) { return p.status === 'running'; });
+            var liveSection = $('live-pipeline');
+            if (!hasRunning) {
+                liveSection.classList.add('hidden');
+            }
+        }
+
+        // --- SSE for live pipeline updates ---
+
+        var liveTargets = {};
+        var liveTotalTargets = 0;
+        var eventSource = null;
+
+        function statusColor(status) {
+            switch (status) {
+                case 'success': return 'var(--green)';
+                case 'failed': return 'var(--red)';
+                case 'running': return 'var(--blue)';
+                default: return 'var(--text-secondary)';
+            }
+        }
+
+        function updateLiveTarget(update) {
+            var liveSection = $('live-pipeline');
+            liveSection.classList.remove('hidden');
+
+            liveTargets[update.target] = update;
+
+            // Update progress
+            var total = liveTotalTargets || Object.keys(liveTargets).length;
+            if (update.runID) {
+                // count completed
+                var completed = 0;
+                var passed = 0;
+                var failed = 0;
+                Object.keys(liveTargets).forEach(function(key) {
+                    var t = liveTargets[key];
+                    if (t.status === 'success' || t.status === 'failed' || t.status === 'skipped') {
+                        completed++;
+                    }
+                    if (t.status === 'success') passed++;
+                    if (t.status === 'failed') failed++;
+                });
+
+                var pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+                var bar = $('live-progress-bar');
+                bar.style.width = pct + '%';
+
+                if (failed > 0) {
+                    var passPct = total > 0 ? Math.round((passed / total) * 100) : 0;
+                    bar.classList.add('has-failures');
+                    bar.style.setProperty('--pass-pct', passPct + '%');
+                } else {
+                    bar.classList.remove('has-failures');
+                }
+
+                $('live-pipeline-stats').textContent = completed + '/' + total + ' targets complete';
+            }
+
+            // Render all targets
+            var container = $('live-targets');
+            var keys = Object.keys(liveTargets);
+            container.innerHTML = keys.map(function(key) {
+                var t = liveTargets[key];
+                var icon = t.status === 'success' ? '✅' :
+                           t.status === 'failed' ? '❌' :
+                           t.status === 'running' ? '<span class="spinner">⟳</span>' : '⏳';
+
+                var parts = '<span class="live-icon">' + icon + '</span>' +
+                    '<span class="live-name">' + escapeHtml(t.target) + '</span>' +
+                    '<span class="live-status" style="color: ' + statusColor(t.status) + '">' + escapeHtml(t.status) + '</span>';
+                if (t.duration > 0) {
+                    parts += '<span class="live-duration">' + t.duration + 'ms</span>';
+                }
+                if (t.error) {
+                    parts += '<span class="live-error">' + escapeHtml(t.error) + '</span>';
+                }
+                return '<div class="live-target">' + parts + '</div>';
+            }).join('');
+        }
+
+        function connectSSE() {
+            if (eventSource) return;
+            eventSource = new EventSource('/api/pipelines/live');
+            eventSource.onmessage = function(event) {
+                try {
+                    var update = JSON.parse(event.data);
+                    updateLiveTarget(update);
+                } catch (e) {
+                    console.error('Failed to parse SSE message:', e);
+                }
+            };
+            eventSource.onerror = function() {
+                eventSource.close();
+                eventSource = null;
+                setTimeout(connectSSE, 5000);
+            };
+        }
+
+        connectSSE();
 
         async function fetchData() {
             try {

@@ -50,6 +50,14 @@ type Store interface {
 	ListAddons(ctx context.Context, clusterName string) ([]AddonRecord, error)
 	DeleteAddon(ctx context.Context, clusterName, namespace, name string) error
 
+	// Pipeline operations
+	SavePipelineRun(ctx context.Context, run *PipelineRunRecord) error
+	GetPipelineRun(ctx context.Context, id string) (*PipelineRunRecord, error)
+	ListPipelineRuns(ctx context.Context, limit int) ([]PipelineRunRecord, error)
+	DeletePipelineRun(ctx context.Context, id string) error
+	SavePipelineTarget(ctx context.Context, target *PipelineTargetRecord) error
+	ListPipelineTargets(ctx context.Context, runID string) ([]PipelineTargetRecord, error)
+
 	Close() error
 }
 
@@ -149,4 +157,28 @@ type AddonRecord struct {
 	Config      string // JSON-encoded map[string]string
 	CreatedAt   int64
 	UpdatedAt   int64
+}
+
+type PipelineRunRecord struct {
+	ID            string // UUID
+	ClusterName   string // optional, empty if no cluster
+	Status        string // "running", "success", "failed", "cancelled"
+	StartedAt     int64
+	FinishedAt    int64
+	TotalTargets  int
+	PassedTargets int
+	FailedTargets int
+	File          string // Torresmofile path
+	TargetFilter  string // specific target requested, or empty for all
+}
+
+type PipelineTargetRecord struct {
+	RunID      string
+	Name       string
+	Status     string // "pending", "running", "success", "failed", "skipped"
+	StartedAt  int64
+	FinishedAt int64
+	Duration   int64  // milliseconds
+	Error      string
+	Output     string // last N lines of output (truncated)
 }

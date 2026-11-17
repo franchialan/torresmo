@@ -31,6 +31,7 @@ type Runner struct {
 	workdir   string
 	artifacts map[string]string // target name -> host artifact directory
 	verbose   bool
+	tracker   *Tracker // may be nil
 	mu        sync.Mutex
 }
 
@@ -49,6 +50,11 @@ func NewRunner(rt runtime.ContainerRuntime, tf *Torresmofile, workdir string) *R
 		workdir:   workdir,
 		artifacts: make(map[string]string),
 	}
+}
+
+// SetTracker attaches a tracker for persisting run state.
+func (r *Runner) SetTracker(t *Tracker) {
+	r.tracker = t
 }
 
 // Run executes the pipeline targets according to the given options.
@@ -81,6 +87,9 @@ func (r *Runner) Run(ctx context.Context, opts RunOptions) ([]RunResult, error) 
 			results, err := r.runLevel(ctx, level)
 			if err != nil {
 				allResults = append(allResults, results...)
+				if r.tracker != nil {
+					r.tracker.FinishRun(ctx, allResults)
+				}
 				return allResults, err
 			}
 			allResults = append(allResults, results...)
@@ -89,10 +98,17 @@ func (r *Runner) Run(ctx context.Context, opts RunOptions) ([]RunResult, error) 
 				result := r.runTarget(ctx, targetName)
 				allResults = append(allResults, *result)
 				if result.Status == "failed" {
+					if r.tracker != nil {
+						r.tracker.FinishRun(ctx, allResults)
+					}
 					return allResults, fmt.Errorf("target %q failed: %w", targetName, result.Error)
 				}
 			}
 		}
+	}
+
+	if r.tracker != nil {
+		r.tracker.FinishRun(ctx, allResults)
 	}
 
 	return allResults, nil
@@ -124,11 +140,16 @@ func (r *Runner) runTarget(ctx context.Context, targetName string) *RunResult {
 	start := time.Now()
 	result := &RunResult{Target: targetName}
 
+	if r.tracker != nil {
+		r.tracker.UpdateTarget(ctx, targetName, "running", 0, "", "")
+	}
+
 	target, err := r.tf.GetTarget(targetName)
 	if err != nil {
 		result.Status = "failed"
 		result.Error = err
 		result.Duration = time.Since(start)
+		r.trackFailure(ctx, targetName, result)
 		return result
 	}
 
@@ -137,6 +158,7 @@ func (r *Runner) runTarget(ctx context.Context, targetName string) *RunResult {
 		result.Status = "failed"
 		result.Error = err
 		result.Duration = time.Since(start)
+		r.trackFailure(ctx, targetName, result)
 		return result
 	}
 
@@ -154,6 +176,7 @@ func (r *Runner) runTarget(ctx context.Context, targetName string) *RunResult {
 			result.Status = "failed"
 			result.Error = fmt.Errorf("pulling image %q: %w", image, err)
 			result.Duration = time.Since(start)
+			r.trackFailure(ctx, targetName, result)
 			return result
 		}
 	}
@@ -164,6 +187,7 @@ func (r *Runner) runTarget(ctx context.Context, targetName string) *RunResult {
 		result.Status = "failed"
 		result.Error = fmt.Errorf("creating artifact dir: %w", err)
 		result.Duration = time.Since(start)
+		r.trackFailure(ctx, targetName, result)
 		return result
 	}
 	// Note: artifact dirs are cleaned up by Runner.Run after all targets complete.
@@ -210,6 +234,7 @@ func (r *Runner) runTarget(ctx context.Context, targetName string) *RunResult {
 		result.Status = "failed"
 		result.Error = fmt.Errorf("creating container: %w", err)
 		result.Duration = time.Since(start)
+		r.trackFailure(ctx, targetName, result)
 		return result
 	}
 	defer func() {
@@ -221,6 +246,7 @@ func (r *Runner) runTarget(ctx context.Context, targetName string) *RunResult {
 		result.Status = "failed"
 		result.Error = fmt.Errorf("starting container: %w", err)
 		result.Duration = time.Since(start)
+		r.trackFailure(ctx, targetName, result)
 		return result
 	}
 
@@ -236,6 +262,7 @@ func (r *Runner) runTarget(ctx context.Context, targetName string) *RunResult {
 			result.Status = "failed"
 			result.Error = fmt.Errorf("artifact directory for target %q not found", ca.From)
 			result.Duration = time.Since(start)
+			r.trackFailure(ctx, targetName, result)
 			return result
 		}
 
@@ -247,6 +274,7 @@ func (r *Runner) runTarget(ctx context.Context, targetName string) *RunResult {
 			result.Status = "failed"
 			result.Error = fmt.Errorf("reading artifact %q from target %q: %w", ca.Src, ca.From, err)
 			result.Duration = time.Since(start)
+			r.trackFailure(ctx, targetName, result)
 			return result
 		}
 
@@ -257,6 +285,7 @@ func (r *Runner) runTarget(ctx context.Context, targetName string) *RunResult {
 			result.Status = "failed"
 			result.Error = fmt.Errorf("creating directory %q in container: %w", destDir, err)
 			result.Duration = time.Since(start)
+			r.trackFailure(ctx, targetName, result)
 			return result
 		}
 
@@ -267,6 +296,7 @@ func (r *Runner) runTarget(ctx context.Context, targetName string) *RunResult {
 			result.Status = "failed"
 			result.Error = fmt.Errorf("writing artifact to %q in container: %w", ca.Dest, err)
 			result.Duration = time.Since(start)
+			r.trackFailure(ctx, targetName, result)
 			return result
 		}
 	}
@@ -285,6 +315,7 @@ func (r *Runner) runTarget(ctx context.Context, targetName string) *RunResult {
 			result.Status = "failed"
 			result.Error = fmt.Errorf("stat %q for copy: %w", cp.Src, err)
 			result.Duration = time.Since(start)
+			r.trackFailure(ctx, targetName, result)
 			return result
 		}
 
@@ -295,6 +326,7 @@ func (r *Runner) runTarget(ctx context.Context, targetName string) *RunResult {
 				result.Status = "failed"
 				result.Error = fmt.Errorf("creating directory %q in container: %w", cp.Dest, err)
 				result.Duration = time.Since(start)
+				r.trackFailure(ctx, targetName, result)
 				return result
 			}
 			// If the source is the workdir and dest matches the bind mount, skip (already mounted).
@@ -309,6 +341,7 @@ func (r *Runner) runTarget(ctx context.Context, targetName string) *RunResult {
 				result.Status = "failed"
 				result.Error = fmt.Errorf("copying directory %q to %q in container: %w", cp.Src, cp.Dest, err)
 				result.Duration = time.Since(start)
+				r.trackFailure(ctx, targetName, result)
 				return result
 			}
 		} else {
@@ -319,6 +352,7 @@ func (r *Runner) runTarget(ctx context.Context, targetName string) *RunResult {
 				result.Status = "failed"
 				result.Error = fmt.Errorf("creating directory %q in container: %w", destDir, err)
 				result.Duration = time.Since(start)
+				r.trackFailure(ctx, targetName, result)
 				return result
 			}
 
@@ -327,6 +361,7 @@ func (r *Runner) runTarget(ctx context.Context, targetName string) *RunResult {
 				result.Status = "failed"
 				result.Error = fmt.Errorf("reading file %q for copy: %w", cp.Src, err)
 				result.Duration = time.Since(start)
+				r.trackFailure(ctx, targetName, result)
 				return result
 			}
 
@@ -337,6 +372,7 @@ func (r *Runner) runTarget(ctx context.Context, targetName string) *RunResult {
 				result.Status = "failed"
 				result.Error = fmt.Errorf("copying %q to %q in container: %w", cp.Src, cp.Dest, err)
 				result.Duration = time.Since(start)
+				r.trackFailure(ctx, targetName, result)
 				return result
 			}
 		}
@@ -366,12 +402,14 @@ func (r *Runner) runTarget(ctx context.Context, targetName string) *RunResult {
 			result.Status = "failed"
 			result.Error = fmt.Errorf("executing %q: %w", run.Command, err)
 			result.Duration = time.Since(start)
+			r.trackFailure(ctx, targetName, result)
 			return result
 		}
 		if execResult != nil && execResult.ExitCode != 0 {
 			result.Status = "failed"
 			result.Error = fmt.Errorf("command %q exited with code %d", run.Command, execResult.ExitCode)
 			result.Duration = time.Since(start)
+			r.trackFailure(ctx, targetName, result)
 			return result
 		}
 	}
@@ -389,12 +427,14 @@ func (r *Runner) runTarget(ctx context.Context, targetName string) *RunResult {
 			result.Status = "failed"
 			result.Error = fmt.Errorf("reading artifact %q from container: %w", artifact.Path, err)
 			result.Duration = time.Since(start)
+			r.trackFailure(ctx, targetName, result)
 			return result
 		}
 		if execResult != nil && execResult.ExitCode != 0 {
 			result.Status = "failed"
 			result.Error = fmt.Errorf("artifact %q not found in container (exit code %d)", artifact.Path, execResult.ExitCode)
 			result.Duration = time.Since(start)
+			r.trackFailure(ctx, targetName, result)
 			return result
 		}
 
@@ -405,14 +445,29 @@ func (r *Runner) runTarget(ctx context.Context, targetName string) *RunResult {
 			result.Status = "failed"
 			result.Error = fmt.Errorf("writing artifact %q to disk: %w", artifact.Path, err)
 			result.Duration = time.Since(start)
+			r.trackFailure(ctx, targetName, result)
 			return result
 		}
 	}
 
 	result.Status = "success"
 	result.Duration = time.Since(start)
+	if r.tracker != nil {
+		r.tracker.UpdateTarget(ctx, targetName, "success", result.Duration, "", "")
+	}
 	r.printStep(targetName, fmt.Sprintf("done (%s)", result.Duration.Round(time.Millisecond)))
 	return result
+}
+
+// trackFailure notifies the tracker of a failed target, if present.
+func (r *Runner) trackFailure(ctx context.Context, targetName string, result *RunResult) {
+	if r.tracker != nil {
+		errMsg := ""
+		if result.Error != nil {
+			errMsg = result.Error.Error()
+		}
+		r.tracker.UpdateTarget(ctx, targetName, "failed", result.Duration, errMsg, "")
+	}
 }
 
 // printStep prints a step header.

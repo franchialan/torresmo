@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/torresmo-dev/torresmo/internal/cluster"
@@ -20,11 +21,14 @@ var staticFiles embed.FS
 
 // Server serves the web dashboard.
 type Server struct {
-	clusterMgr *cluster.Manager
-	orch       *orchestrator.Orchestrator
-	store      storage.Store
-	cluster    string
-	addr       string
+	clusterMgr  *cluster.Manager
+	orch        *orchestrator.Orchestrator
+	store       storage.Store
+	cluster     string
+	addr        string
+	liveUpdates chan []byte
+	liveClients []chan []byte
+	liveMu      sync.Mutex
 }
 
 func NewServer(mgr *cluster.Manager, orch *orchestrator.Orchestrator, store storage.Store, clusterName, addr string) *Server {
@@ -34,6 +38,27 @@ func NewServer(mgr *cluster.Manager, orch *orchestrator.Orchestrator, store stor
 		store:      store,
 		cluster:    clusterName,
 		addr:       addr,
+	}
+}
+
+// SetLiveChannel sets the channel for receiving live pipeline updates.
+// Each message should be a JSON-encoded byte slice. The server fans out
+// every received message to all connected SSE clients.
+func (s *Server) SetLiveChannel(ch chan []byte) {
+	s.liveUpdates = ch
+	go s.fanoutUpdates()
+}
+
+func (s *Server) fanoutUpdates() {
+	for msg := range s.liveUpdates {
+		s.liveMu.Lock()
+		for _, client := range s.liveClients {
+			select {
+			case client <- msg:
+			default:
+			}
+		}
+		s.liveMu.Unlock()
 	}
 }
 
@@ -49,6 +74,9 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.HandleFunc("/api/namespaces", s.handleNamespaces)
 	mux.HandleFunc("/api/events", s.handleEvents)
 	mux.HandleFunc("/api/addons", s.handleAddons)
+	mux.HandleFunc("/api/pipelines/live", s.handlePipelineLive)
+	mux.HandleFunc("/api/pipelines", s.handlePipelines)
+	mux.HandleFunc("/api/pipelines/", s.handlePipelineTargets)
 	mux.HandleFunc("/api/overview", s.handleOverview)
 
 	// Static files (embedded)
@@ -94,14 +122,15 @@ func (s *Server) writeError(w http.ResponseWriter, status int, msg string) {
 // --- Response types ---
 
 type OverviewResponse struct {
-	Cluster    *ClusterInfo    `json:"cluster"`
-	Nodes      []NodeInfo      `json:"nodes"`
-	Pods       []PodInfo       `json:"pods"`
-	Services   []ServiceInfo   `json:"services"`
-	Namespaces []NamespaceInfo `json:"namespaces"`
-	Events     []EventInfo     `json:"events"`
-	Addons     []AddonInfo     `json:"addons"`
-	Timestamp  string          `json:"timestamp"`
+	Cluster    *ClusterInfo      `json:"cluster"`
+	Nodes      []NodeInfo        `json:"nodes"`
+	Pods       []PodInfo         `json:"pods"`
+	Services   []ServiceInfo     `json:"services"`
+	Namespaces []NamespaceInfo   `json:"namespaces"`
+	Events     []EventInfo       `json:"events"`
+	Addons     []AddonInfo       `json:"addons"`
+	Pipelines  []PipelineRunInfo `json:"pipelines"`
+	Timestamp  string            `json:"timestamp"`
 }
 
 type ClusterInfo struct {
@@ -158,6 +187,19 @@ type AddonInfo struct {
 	Namespace string `json:"namespace"`
 	Version   string `json:"version"`
 	Phase     string `json:"phase"`
+}
+
+type PipelineRunInfo struct {
+	ID            string `json:"id"`
+	Status        string `json:"status"`
+	StartedAt     string `json:"startedAt"`
+	FinishedAt    string `json:"finishedAt,omitempty"`
+	Duration      string `json:"duration"`
+	TotalTargets  int    `json:"totalTargets"`
+	PassedTargets int    `json:"passedTargets"`
+	FailedTargets int    `json:"failedTargets"`
+	File          string `json:"file"`
+	TargetFilter  string `json:"targetFilter,omitempty"`
 }
 
 // --- Conversion helpers ---
@@ -230,6 +272,28 @@ func addonInfoFromRecord(a storage.AddonRecord) AddonInfo {
 		Version:   a.Version,
 		Phase:     a.Phase,
 	}
+}
+
+func pipelineRunInfoFromRecord(run storage.PipelineRunRecord) PipelineRunInfo {
+	started := time.Unix(run.StartedAt, 0)
+	info := PipelineRunInfo{
+		ID:            run.ID,
+		Status:        run.Status,
+		StartedAt:     started.Format("15:04:05"),
+		TotalTargets:  run.TotalTargets,
+		PassedTargets: run.PassedTargets,
+		FailedTargets: run.FailedTargets,
+		File:          run.File,
+		TargetFilter:  run.TargetFilter,
+	}
+	if run.FinishedAt > 0 {
+		finished := time.Unix(run.FinishedAt, 0)
+		info.FinishedAt = finished.Format("15:04:05")
+		info.Duration = finished.Sub(started).Round(time.Millisecond).String()
+	} else {
+		info.Duration = time.Since(started).Round(time.Second).String()
+	}
+	return info
 }
 
 // formatServicePorts parses the JSON-encoded []ServicePort and formats as "80:8080/TCP" style.
@@ -457,5 +521,108 @@ func (s *Server) handleOverview(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Recent pipeline runs
+	pipelineRuns, err := s.store.ListPipelineRuns(ctx, 5)
+	if err == nil {
+		resp.Pipelines = make([]PipelineRunInfo, len(pipelineRuns))
+		for i, run := range pipelineRuns {
+			resp.Pipelines[i] = pipelineRunInfoFromRecord(run)
+		}
+	}
+
 	s.writeJSON(w, resp)
+}
+
+func (s *Server) handlePipelines(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	runs, err := s.store.ListPipelineRuns(ctx, 20)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	result := make([]PipelineRunInfo, len(runs))
+	for i, run := range runs {
+		result[i] = pipelineRunInfoFromRecord(run)
+	}
+
+	s.writeJSON(w, result)
+}
+
+func (s *Server) handlePipelineTargets(w http.ResponseWriter, r *http.Request) {
+	parts := strings.Split(r.URL.Path, "/")
+	// /api/pipelines/<id>/targets → ["", "api", "pipelines", "<id>", "targets"]
+	if len(parts) < 5 {
+		s.writeError(w, http.StatusBadRequest, "missing run ID")
+		return
+	}
+	runID := parts[3]
+
+	ctx := context.Background()
+	targets, err := s.store.ListPipelineTargets(ctx, runID)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	type TargetInfo struct {
+		Name     string `json:"name"`
+		Status   string `json:"status"`
+		Duration string `json:"duration"`
+		Error    string `json:"error,omitempty"`
+		Output   string `json:"output,omitempty"`
+	}
+
+	result := make([]TargetInfo, len(targets))
+	for i, t := range targets {
+		result[i] = TargetInfo{
+			Name:     t.Name,
+			Status:   t.Status,
+			Duration: fmt.Sprintf("%dms", t.Duration),
+			Error:    t.Error,
+			Output:   t.Output,
+		}
+	}
+
+	s.writeJSON(w, result)
+}
+
+func (s *Server) handlePipelineLive(w http.ResponseWriter, r *http.Request) {
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		s.writeError(w, http.StatusInternalServerError, "streaming not supported")
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	clientCh := make(chan []byte, 100)
+	s.liveMu.Lock()
+	s.liveClients = append(s.liveClients, clientCh)
+	s.liveMu.Unlock()
+
+	defer func() {
+		s.liveMu.Lock()
+		for i, ch := range s.liveClients {
+			if ch == clientCh {
+				s.liveClients = append(s.liveClients[:i], s.liveClients[i+1:]...)
+				break
+			}
+		}
+		s.liveMu.Unlock()
+	}()
+
+	ctx := r.Context()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case msg := <-clientCh:
+			_, _ = fmt.Fprintf(w, "data: %s\n\n", msg)
+			flusher.Flush()
+		}
+	}
 }

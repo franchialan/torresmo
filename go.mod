@@ -3,6 +3,7 @@ module github.com/torresmo-dev/torresmo
 go 1.26.2
 
 require (
+	github.com/containerd/errdefs v1.0.0
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/docker/go-connections v0.8.2
 	github.com/hashicorp/hcl/v2 v2.25.0
@@ -19,7 +20,6 @@ require (
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/apparentlymart/go-textseg/v17 v17.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/containerd/errdefs v1.0.0 // indirect
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/containerd/log v0.2.0 // indirect
 	github.com/distribution/reference v0.6.0 // indirect

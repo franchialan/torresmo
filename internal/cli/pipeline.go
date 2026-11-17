@@ -56,6 +56,14 @@ var pipelineRunCmd = &cobra.Command{
 		defer stop()
 
 		runner := pipeline.NewRunner(rt, tf, workdir)
+
+		_, store, storeErr := initDeps()
+		if storeErr == nil {
+			tracker := pipeline.NewTracker(store)
+			runner.SetTracker(tracker)
+			_, _ = tracker.StartRun(ctx, file, target, len(tf.TargetNames()))
+		}
+
 		results, err := runner.Run(ctx, pipeline.RunOptions{
 			Target:   target,
 			Verbose:  verbose,
