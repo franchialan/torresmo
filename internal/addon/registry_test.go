@@ -28,7 +28,7 @@ func newFakeAddon(name string, orch *orchestrator.Orchestrator, store storage.St
 }
 
 func (f *fakeAddon) Name() string              { return f.name }
-func (f *fakeAddon) DisplayName() string        { return strings.Title(f.name) }
+func (f *fakeAddon) DisplayName() string        { return f.name }
 func (f *fakeAddon) Description() string        { return f.name + " addon" }
 func (f *fakeAddon) DefaultVersion() string     { return "1.0" }
 func (f *fakeAddon) AvailableVersions() []string { return []string{"1.0", "2.0"} }
