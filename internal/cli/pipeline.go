@@ -184,9 +184,10 @@ func printRunResults(results []pipeline.RunResult) {
 
 	for _, r := range results {
 		icon := "✓"
-		if r.Status == "failed" {
+		switch r.Status {
+		case "failed":
 			icon = "✗"
-		} else if r.Status == "skipped" {
+		case "skipped":
 			icon = "○"
 		}
 

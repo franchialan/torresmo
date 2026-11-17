@@ -59,7 +59,7 @@ func (r *Runner) Run(ctx context.Context, opts RunOptions) ([]RunResult, error) 
 	defer func() {
 		r.mu.Lock()
 		for _, dir := range r.artifacts {
-			os.RemoveAll(dir)
+			_ = os.RemoveAll(dir)
 		}
 		r.mu.Unlock()
 	}()
@@ -441,7 +441,7 @@ func (pw *prefixWriter) Write(p []byte) (int, error) {
 	scanner := bufio.NewScanner(bytes.NewReader(pw.buf[:lastNewline+1]))
 	for scanner.Scan() {
 		line := scanner.Text()
-		fmt.Fprintf(pw.w, "%s%s\n", pw.prefix, line)
+		_, _ = fmt.Fprintf(pw.w, "%s%s\n", pw.prefix, line)
 	}
 
 	if lastNewline < len(pw.buf)-1 {

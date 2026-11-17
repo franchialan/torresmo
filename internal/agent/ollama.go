@@ -72,7 +72,7 @@ func (c *OllamaClient) Ping(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("connecting to Ollama at %s: %w", c.baseURL, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("Ollama returned status %d", resp.StatusCode)
@@ -101,7 +101,7 @@ func (c *OllamaClient) Generate(ctx context.Context, prompt string) (string, err
 	if err != nil {
 		return "", fmt.Errorf("calling Ollama generate: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)

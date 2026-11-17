@@ -26,7 +26,8 @@ var upCmd = &cobra.Command{
 
 		data, err := os.ReadFile(file)
 		if err != nil {
-			return fmt.Errorf("reading %s: %w\n\nCreate one with 'torresmo share export' or write a torresmo-env.yaml manually.", file, err)
+			fmt.Fprintf(os.Stderr, "Hint: Create one with 'torresmo share export' or write a torresmo-env.yaml manually.\n")
+			return fmt.Errorf("reading %s: %w", file, err)
 		}
 
 		var env v1.Environment

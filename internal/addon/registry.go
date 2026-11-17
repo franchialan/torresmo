@@ -112,7 +112,7 @@ func (r *Registry) Install(ctx context.Context, name string, opts InstallOptions
 	if err := addon.Install(ctx, opts); err != nil {
 		rec.Phase = "Failed"
 		rec.UpdatedAt = time.Now().Unix()
-		r.store.SaveAddon(ctx, rec)
+		_ = r.store.SaveAddon(ctx, rec)
 		return fmt.Errorf("installing addon %q: %w", name, err)
 	}
 

@@ -121,11 +121,11 @@ func renderDashboard(ctx context.Context, clusterName string, mgr *cluster.Manag
 	if err == nil {
 		fmt.Printf("Nodes (%d)\n", len(nodes))
 		w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-		fmt.Fprintln(w, "  NAME\tROLE\tSTATUS\tADDRESS")
+		_, _ = fmt.Fprintln(w, "  NAME\tROLE\tSTATUS\tADDRESS")
 		for _, n := range nodes {
 			fmt.Fprintf(w, "  %s\t%s\t%s\t%s\n", n.Name, n.Role, n.Phase, n.Address)
 		}
-		w.Flush()
+		_ = w.Flush()
 	} else {
 		fmt.Printf("Nodes: error: %v\n", err)
 	}
@@ -136,11 +136,11 @@ func renderDashboard(ctx context.Context, clusterName string, mgr *cluster.Manag
 	if err == nil {
 		fmt.Printf("Pods (%d)\n", len(pods))
 		w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-		fmt.Fprintln(w, "  NAMESPACE\tNAME\tIMAGE\tSTATUS\tNODE")
+		_, _ = fmt.Fprintln(w, "  NAMESPACE\tNAME\tIMAGE\tSTATUS\tNODE")
 		for _, p := range pods {
 			fmt.Fprintf(w, "  %s\t%s\t%s\t%s\t%s\n", p.Namespace, p.Name, p.Image, p.Phase, p.Node)
 		}
-		w.Flush()
+		_ = w.Flush()
 	} else {
 		fmt.Printf("Pods: error: %v\n", err)
 	}
@@ -151,11 +151,11 @@ func renderDashboard(ctx context.Context, clusterName string, mgr *cluster.Manag
 	if err == nil {
 		fmt.Printf("Services (%d)\n", len(svcs))
 		w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-		fmt.Fprintln(w, "  NAMESPACE\tNAME\tTYPE\tCLUSTER-IP")
+		_, _ = fmt.Fprintln(w, "  NAMESPACE\tNAME\tTYPE\tCLUSTER-IP")
 		for _, s := range svcs {
 			fmt.Fprintf(w, "  %s\t%s\t%s\t%s\n", s.Namespace, s.Name, s.Type, s.ClusterIP)
 		}
-		w.Flush()
+		_ = w.Flush()
 	} else {
 		fmt.Printf("Services: error: %v\n", err)
 	}

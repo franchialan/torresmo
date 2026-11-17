@@ -79,7 +79,7 @@ func BenchmarkRedis(ctx context.Context, opts Options) (*Result, error) {
 			if err != nil {
 				return
 			}
-			defer conn.Close()
+			defer func() { _ = conn.Close() }()
 
 			buf := make([]byte, 256)
 
@@ -100,7 +100,7 @@ func BenchmarkRedis(ctx context.Context, opts Options) (*Result, error) {
 					continue
 				}
 
-				conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+				_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
 				_, err = conn.Read(buf)
 				if err != nil {
 					failedOps.Add(1)
@@ -173,7 +173,7 @@ func BenchmarkPostgres(ctx context.Context, opts Options) (*Result, error) {
 					failedOps.Add(1)
 					continue
 				}
-				conn.Close()
+				_ = conn.Close()
 
 				lat := time.Since(opStart)
 				successOps.Add(1)
@@ -256,7 +256,7 @@ func BenchmarkHTTP(ctx context.Context, opts Options) (*Result, error) {
 					failedOps.Add(1)
 					continue
 				}
-				resp.Body.Close()
+				_ = resp.Body.Close()
 
 				successOps.Add(1)
 

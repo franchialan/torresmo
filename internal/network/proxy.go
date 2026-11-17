@@ -65,7 +65,7 @@ func (p *ProxyManager) Forward(ctx context.Context, localPort int, remoteAddr st
 
 func (p *ProxyManager) serve(ctx context.Context, pf *PortForward) {
 	defer close(pf.done)
-	defer pf.listener.Close()
+	defer func() { _ = pf.listener.Close() }()
 
 	for {
 		conn, err := pf.listener.Accept()
@@ -82,13 +82,13 @@ func (p *ProxyManager) serve(ctx context.Context, pf *PortForward) {
 }
 
 func (p *ProxyManager) handleConn(_ context.Context, local net.Conn, remoteAddr string) {
-	defer local.Close()
+	defer func() { _ = local.Close() }()
 
 	remote, err := net.Dial("tcp", remoteAddr)
 	if err != nil {
 		return
 	}
-	defer remote.Close()
+	defer func() { _ = remote.Close() }()
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -96,13 +96,13 @@ func (p *ProxyManager) handleConn(_ context.Context, local net.Conn, remoteAddr 
 	// local -> remote
 	go func() {
 		defer wg.Done()
-		io.Copy(remote, local)
+		_, _ = io.Copy(remote, local)
 	}()
 
 	// remote -> local
 	go func() {
 		defer wg.Done()
-		io.Copy(local, remote)
+		_, _ = io.Copy(local, remote)
 	}()
 
 	wg.Wait()

@@ -160,7 +160,7 @@ func (s *Session) syncDir(ctx context.Context, local, remote string) error {
 
 		remoteDir := filepath.Dir(remotePath)
 		mkdirCmd := []string{"sh", "-c", fmt.Sprintf("mkdir -p '%s'", remoteDir)}
-		s.runtime.ExecInContainer(ctx, s.config.ContainerID, mkdirCmd, runtime.ExecOptions{})
+		_, _ = s.runtime.ExecInContainer(ctx, s.config.ContainerID, mkdirCmd, runtime.ExecOptions{})
 
 		writeCmd := []string{"sh", "-c", fmt.Sprintf("cat > '%s'", remotePath)}
 		_, err = s.runtime.ExecInContainer(ctx, s.config.ContainerID, writeCmd, runtime.ExecOptions{
@@ -191,7 +191,7 @@ func (s *Session) detectChanges(since time.Time) (bool, error) {
 	for _, rule := range s.config.Syncs {
 		absLocal, _ := filepath.Abs(rule.Local)
 		changed := false
-		filepath.WalkDir(absLocal, func(path string, d os.DirEntry, err error) error {
+		_ = filepath.WalkDir(absLocal, func(path string, d os.DirEntry, err error) error {
 			if err != nil || d.IsDir() {
 				return nil
 			}

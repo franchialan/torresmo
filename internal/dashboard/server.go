@@ -67,7 +67,7 @@ func (s *Server) Start(ctx context.Context) error {
 		<-ctx.Done()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		server.Shutdown(shutdownCtx)
+		_ = server.Shutdown(shutdownCtx)
 	}()
 
 	return server.ListenAndServe()
@@ -82,13 +82,13 @@ func (s *Server) setCORS(w http.ResponseWriter) {
 
 func (s *Server) writeJSON(w http.ResponseWriter, data interface{}) {
 	s.setCORS(w)
-	json.NewEncoder(w).Encode(data)
+	_ = json.NewEncoder(w).Encode(data)
 }
 
 func (s *Server) writeError(w http.ResponseWriter, status int, msg string) {
 	s.setCORS(w)
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]string{"error": msg})
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
 }
 
 // --- Response types ---

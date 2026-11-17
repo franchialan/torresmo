@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/go-connections/nat"
 
 	"github.com/torresmo-dev/torresmo/internal/runtime"
@@ -102,10 +103,10 @@ func (c *Client) CreateContainer(ctx context.Context, config *runtime.ContainerC
 	}
 
 	if config.CPULimit > 0 {
-		hostCfg.Resources.NanoCPUs = int64(config.CPULimit * 1e9)
+		hostCfg.NanoCPUs = int64(config.CPULimit * 1e9)
 	}
 	if config.MemLimit > 0 {
-		hostCfg.Resources.Memory = config.MemLimit
+		hostCfg.Memory = config.MemLimit
 	}
 
 	// --- Network config ---
@@ -215,7 +216,12 @@ func (c *Client) InspectContainer(ctx context.Context, id string) (*runtime.Cont
 
 	// Map network settings.
 	if info.NetworkSettings != nil {
-		detail.NetworkSettings.IPAddress = info.NetworkSettings.IPAddress
+		var defaultIP string
+		for _, ep := range info.NetworkSettings.Networks {
+			defaultIP = ep.IPAddress
+			break
+		}
+		detail.NetworkSettings.IPAddress = defaultIP
 		if len(info.NetworkSettings.Networks) > 0 {
 			detail.NetworkSettings.Networks = make(map[string]runtime.NetworkEndpoint, len(info.NetworkSettings.Networks))
 			for netName, ep := range info.NetworkSettings.Networks {
@@ -393,9 +399,9 @@ func (c *Client) PullImage(ctx context.Context, img string) error {
 
 // ImageExists checks whether an image exists locally.
 func (c *Client) ImageExists(ctx context.Context, img string) (bool, error) {
-	_, _, err := c.cli.ImageInspectWithRaw(ctx, img)
+	_, err := c.cli.ImageInspect(ctx, img)
 	if err != nil {
-		if client.IsErrNotFound(err) {
+		if errdefs.IsNotFound(err) {
 			return false, nil
 		}
 		return false, fmt.Errorf("docker: failed to inspect image %q: %w", img, err)

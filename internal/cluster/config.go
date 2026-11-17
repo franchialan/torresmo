@@ -26,7 +26,7 @@ func LoadConfig(path string) (*v1.Cluster, error) {
 	if cluster.Kind != "Cluster" {
 		return nil, fmt.Errorf("unexpected kind %q (expected Cluster)", cluster.Kind)
 	}
-	if cluster.ObjectMeta.Name == "" {
+	if cluster.Name == "" {
 		return nil, fmt.Errorf("cluster name is required in metadata.name")
 	}
 

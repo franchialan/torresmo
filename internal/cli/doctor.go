@@ -59,7 +59,7 @@ var doctorCmd = &cobra.Command{
 				fmt.Printf("  ✗ Failed to open database: %v\n", err)
 			} else {
 				fmt.Printf("  ✓ Database at %s\n", dbPath)
-				store.Close()
+				_ = store.Close()
 			}
 		}
 

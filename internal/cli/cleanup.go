@@ -120,7 +120,7 @@ Examples:
 
 		// Remove database file when doing a full cleanup.
 		if all && !dryRun {
-			store.Close()
+			_ = store.Close()
 
 			home, err := os.UserHomeDir()
 			if err == nil {

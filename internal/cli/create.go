@@ -39,7 +39,7 @@ var createClusterCmd = &cobra.Command{
 			if err != nil {
 				return fmt.Errorf("failed to load config: %w", err)
 			}
-			name = cfg.ObjectMeta.Name
+			name = cfg.Name
 			if cfg.Spec.Profile != "" {
 				profileName = cfg.Spec.Profile
 			}
@@ -72,7 +72,7 @@ var createClusterCmd = &cobra.Command{
 			}
 			cfg := tmpl.ToClusterConfig(name)
 			if name == "" {
-				name = cfg.ObjectMeta.Name
+				name = cfg.Name
 			}
 			if !cmd.Flags().Changed("profile") {
 				profileName = cfg.Spec.Profile

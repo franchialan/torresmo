@@ -160,9 +160,9 @@ var addonListCmd = &cobra.Command{
 		}
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-		fmt.Fprintln(w, "NAME\tNAMESPACE\tVERSION\tSTATUS\tAGE")
+		_, _ = fmt.Fprintln(w, "NAME\tNAMESPACE\tVERSION\tSTATUS\tAGE")
 		for _, a := range addons {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
 				a.Name,
 				a.Namespace,
 				a.Version,
@@ -191,7 +191,7 @@ var addonSearchCmd = &cobra.Command{
 
 		available := registry.Available()
 		w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-		fmt.Fprintln(w, "NAME\tDESCRIPTION\tDEFAULT VERSION\tVERSIONS")
+		_, _ = fmt.Fprintln(w, "NAME\tDESCRIPTION\tDEFAULT VERSION\tVERSIONS")
 
 		for _, name := range available {
 			if query != "" && !strings.Contains(strings.ToLower(name), query) {
@@ -201,7 +201,7 @@ var addonSearchCmd = &cobra.Command{
 			if err != nil {
 				continue
 			}
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
 				info.Name,
 				info.Description,
 				info.Default,
