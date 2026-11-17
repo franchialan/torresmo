@@ -1,0 +1,24 @@
+apiVersion: torresmo.io/v1
+kind: Deployment
+metadata:
+  name: my-api
+  namespace: default
+  labels:
+    app: my-api
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: my-api
+    spec:
+      containers:
+        - name: api
+          image: my-api:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: REDIS_URL
+              value: "redis.default:6379"
+            - name: DATABASE_URL
+              value: "postgres://dev:dev@postgres.default:5432/myapp"

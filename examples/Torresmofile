@@ -1,0 +1,88 @@
+version = "0.1"
+
+base "golang" {
+  image   = "golang:1.22-alpine"
+  workdir = "/app"
+}
+
+target "lint" {
+  from = "golang"
+
+  copy {
+    src  = "."
+    dest = "/app"
+  }
+
+  run "go vet ./..." {}
+  run "golangci-lint run" {}
+}
+
+target "test" {
+  from = "golang"
+
+  copy {
+    src  = "."
+    dest = "/app"
+  }
+
+  run "go test -race -coverprofile=coverage.out ./..." {}
+
+  artifact {
+    path = "coverage.out"
+  }
+}
+
+target "build" {
+  from       = "golang"
+  depends_on = ["lint", "test"]
+
+  copy {
+    src  = "."
+    dest = "/app"
+  }
+
+  run "CGO_ENABLED=0 go build -ldflags='-s -w' -o /out/app ./cmd/app" {}
+
+  artifact {
+    path = "/out/app"
+  }
+}
+
+target "integration-test" {
+  from          = "golang"
+  depends_on    = ["build"]
+  needs_cluster = true
+  addons        = ["redis", "postgres"]
+
+  copy {
+    src  = "."
+    dest = "/app"
+  }
+
+  env {
+    REDIS_URL    = "redis.default:6379"
+    DATABASE_URL = "postgres://dev:dev@postgres.default:5432/testdb"
+  }
+
+  run "go test -tags=integration -v ./test/integration/..." {}
+}
+
+target "docker" {
+  depends_on = ["build"]
+  from_image = "alpine:3.19"
+
+  copy_artifact {
+    from = "build"
+    src  = "/out/app"
+    dest = "/usr/local/bin/app"
+  }
+}
+
+target "deploy" {
+  depends_on    = ["integration-test", "docker"]
+  needs_cluster = true
+
+  from_image = "bitnami/kubectl:latest"
+
+  run "torresmo apply -f manifests/" {}
+}

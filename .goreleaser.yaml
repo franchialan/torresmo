@@ -1,0 +1,64 @@
+version: 2
+
+project_name: torresmo
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: torresmo
+    main: ./cmd/torresmo
+    binary: torresmo
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/torresmo-dev/torresmo/internal/cli.Version={{.Version}}
+      - -X github.com/torresmo-dev/torresmo/internal/cli.Commit={{.Commit}}
+      - -X github.com/torresmo-dev/torresmo/internal/cli.Date={{.Date}}
+
+archives:
+  - id: torresmo
+    builds:
+      - torresmo
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
+
+brews:
+  - name: torresmo
+    repository:
+      owner: torresmo-dev
+      name: homebrew-tap
+    directory: Formula
+    homepage: "https://github.com/torresmo-dev/torresmo"
+    description: "A container orchestrator for local development"
+    license: "MIT"
+    install: |
+      bin.install "torresmo"
+    test: |
+      system "#{bin}/torresmo", "version"

@@ -1,0 +1,27 @@
+apiVersion: torresmo.io/v1
+kind: Environment
+metadata:
+  name: my-project-dev
+spec:
+  cluster:
+    nodes:
+      - role: control-plane
+      - role: worker
+        count: 2
+    profile: standard
+    networking:
+      podCIDR: "10.244.0.0/16"
+  addons:
+    - name: redis
+      version: "7.2"
+      namespace: default
+    - name: postgres
+      version: "16"
+      namespace: default
+      config:
+        database: myapp
+        user: dev
+    - name: prometheus
+    - name: grafana
+  manifests:
+    - ./k8s/

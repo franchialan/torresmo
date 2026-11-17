@@ -1,0 +1,23 @@
+apiVersion: torresmo.io/v1
+kind: Cluster
+metadata:
+  name: dev
+spec:
+  nodes:
+    - role: control-plane
+    - role: worker
+      count: 2
+  runtime: docker
+  profile: standard
+  networking:
+    podCIDR: "10.244.0.0/16"
+  addons:
+    - name: redis
+      namespace: cache
+    - name: postgres
+      namespace: default
+      config:
+        database: myapp
+        user: dev
+    - name: prometheus
+    - name: grafana

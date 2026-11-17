@@ -1,0 +1,37 @@
+apiVersion: torresmo.io/v1
+kind: Addon
+metadata:
+  name: minio
+  description: S3-compatible object storage
+  author: torresmo-dev
+  version: "1.0.0"
+spec:
+  versions: ["latest"]
+  default: "latest"
+  containers:
+    - name: minio
+      image: "minio/minio:{version}"
+      command: ["server", "/data", "--console-address", ":9001"]
+  ports:
+    - name: api
+      containerPort: 9000
+      protocol: tcp
+    - name: console
+      containerPort: 9001
+      protocol: tcp
+  env:
+    - name: MINIO_ROOT_USER
+      value: "minioadmin"
+      fromConfig: "root_user"
+    - name: MINIO_ROOT_PASSWORD
+      value: "minioadmin"
+      fromConfig: "root_password"
+  config:
+    - name: root_user
+      type: string
+      default: "minioadmin"
+      description: "MinIO root user"
+    - name: root_password
+      type: string
+      default: "minioadmin"
+      description: "MinIO root password"

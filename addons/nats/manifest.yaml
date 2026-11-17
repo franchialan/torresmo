@@ -1,0 +1,22 @@
+apiVersion: torresmo.io/v1
+kind: Addon
+metadata:
+  name: nats
+  description: Cloud-native messaging system
+  author: torresmo-dev
+  version: "1.0.0"
+spec:
+  versions: ["2.10", "2.9"]
+  default: "2.10"
+  containers:
+    - name: nats
+      image: "nats:{version}-alpine"
+      args: ["--jetstream"]
+  ports:
+    - name: client
+      containerPort: 4222
+      protocol: tcp
+    - name: monitor
+      containerPort: 8222
+      protocol: tcp
+  config: []

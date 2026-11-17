@@ -1,0 +1,27 @@
+apiVersion: torresmo.io/v1
+kind: Addon
+metadata:
+  name: jaeger
+  description: Distributed tracing system
+  author: torresmo-dev
+  version: "1.0.0"
+spec:
+  versions: ["1.57", "1.53"]
+  default: "1.57"
+  containers:
+    - name: jaeger
+      image: "jaegertracing/all-in-one:{version}"
+  ports:
+    - name: ui
+      containerPort: 16686
+      protocol: tcp
+    - name: collector
+      containerPort: 14268
+      protocol: tcp
+    - name: otlp-grpc
+      containerPort: 4317
+      protocol: tcp
+  env:
+    - name: COLLECTOR_OTLP_ENABLED
+      value: "true"
+  config: []

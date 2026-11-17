@@ -1,0 +1,33 @@
+apiVersion: torresmo.io/v1
+kind: Addon
+metadata:
+  name: mongodb
+  description: NoSQL document database
+  author: torresmo-dev
+  version: "1.0.0"
+spec:
+  versions: ["7.0", "6.0", "5.0"]
+  default: "7.0"
+  containers:
+    - name: mongodb
+      image: "mongo:{version}"
+  ports:
+    - name: mongodb
+      containerPort: 27017
+      protocol: tcp
+  env:
+    - name: MONGO_INITDB_ROOT_USERNAME
+      value: "torresmo"
+      fromConfig: "root_user"
+    - name: MONGO_INITDB_ROOT_PASSWORD
+      value: "torresmo"
+      fromConfig: "root_password"
+  config:
+    - name: root_user
+      type: string
+      default: "torresmo"
+      description: "Root username"
+    - name: root_password
+      type: string
+      default: "torresmo"
+      description: "Root password"
