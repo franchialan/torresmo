@@ -47,7 +47,11 @@ var dashboardCmd = &cobra.Command{
 
 		if webMode {
 			addr := fmt.Sprintf(":%d", port)
-			srv := dashboard.NewServer(mgr, o, store, clusterName, addr)
+			rt, err := getRuntime()
+			if err != nil {
+				return fmt.Errorf("initializing runtime: %w", err)
+			}
+			srv := dashboard.NewServer(mgr, o, store, rt, clusterName, addr)
 
 			url := fmt.Sprintf("http://localhost:%d", port)
 			fmt.Printf("🐷 Torresmo Dashboard (web) → %s\n", url)

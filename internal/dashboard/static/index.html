@@ -785,6 +785,155 @@
 
         .target-passed { color: var(--green); }
         .target-failed { color: var(--red); font-weight: 600; }
+
+        /* Pod detail panel - slides in from right */
+        .pod-panel {
+            position: fixed;
+            top: 0;
+            right: -600px;
+            width: 600px;
+            max-width: 100vw;
+            height: 100vh;
+            background: #161b22;
+            border-left: 1px solid #30363d;
+            z-index: 1000;
+            transition: right 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            box-shadow: -8px 0 24px rgba(0,0,0,.5);
+        }
+        .pod-panel.open {
+            right: 0;
+        }
+        .pod-panel-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid #30363d;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        .pod-panel-close {
+            background: none;
+            border: none;
+            color: #8b949e;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0 4px;
+        }
+        .pod-panel-close:hover { color: #e6edf3; }
+
+        .pod-panel-info {
+            padding: 16px 24px;
+            border-bottom: 1px solid #30363d;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            font-size: 13px;
+        }
+        .pod-info-label { color: #8b949e; }
+        .pod-info-value { color: #e6edf3; font-family: var(--font-mono); font-size: 12px; }
+
+        .pod-panel-tabs {
+            display: flex;
+            border-bottom: 1px solid #30363d;
+        }
+        .pod-panel-tab {
+            padding: 10px 20px;
+            font-size: 13px;
+            color: #8b949e;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+        }
+        .pod-panel-tab.active { color: #58a6ff; border-bottom-color: #58a6ff; }
+
+        .pod-panel-content {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Log viewer */
+        .log-viewer {
+            flex: 1;
+            background: #010409;
+            overflow-y: auto;
+            padding: 12px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            line-height: 1.6;
+            color: #c9d1d9;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .log-line { padding: 1px 0; }
+        .log-line:hover { background: rgba(88,166,255,.05); }
+        .log-toolbar {
+            padding: 8px 12px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            border-bottom: 1px solid #30363d;
+            font-size: 12px;
+        }
+        .log-toolbar button {
+            background: #21262d;
+            border: 1px solid #30363d;
+            color: #e6edf3;
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        .log-toolbar button:hover { background: #30363d; }
+        .log-status { color: #3fb950; font-size: 11px; margin-left: auto; }
+
+        /* Terminal */
+        .terminal-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .terminal-output {
+            flex: 1;
+            background: #010409;
+            overflow-y: auto;
+            padding: 12px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            line-height: 1.6;
+            color: #c9d1d9;
+        }
+        .terminal-cmd { color: #3fb950; }
+        .terminal-error { color: #f85149; }
+        .terminal-input-wrap {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            border-top: 1px solid #30363d;
+            background: #0d1117;
+        }
+        .terminal-prompt { color: #3fb950; font-family: var(--font-mono); font-size: 13px; margin-right: 8px; }
+        .terminal-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #e6edf3;
+            font-family: var(--font-mono);
+            font-size: 13px;
+            outline: none;
+        }
+        .terminal-input::placeholder { color: #484f58; }
+
+        /* Pod panel overlay */
+        .pod-panel-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,.5);
+            z-index: 999;
+            display: none;
+        }
+        .pod-panel.open ~ .pod-panel-overlay { display: block; }
     </style>
 </head>
 <body>
@@ -979,6 +1128,44 @@
             </div>
             <div class="footer-powered">Powered by <span>Torresmo</span> 🐷</div>
         </footer>
+
+        <!-- Pod Detail Panel -->
+        <div class="pod-panel" id="pod-panel">
+            <div class="pod-panel-header">
+                <div>
+                    <div id="pod-panel-name" style="font-size:18px;font-weight:600">Pod</div>
+                    <div id="pod-panel-status" style="margin-top:4px"></div>
+                </div>
+                <button class="pod-panel-close" onclick="closePodPanel()">×</button>
+            </div>
+            <div class="pod-panel-info" id="pod-panel-info"></div>
+            <div class="pod-panel-tabs">
+                <div class="pod-panel-tab active" data-tab="logs" onclick="switchPodTab('logs')">📋 Logs</div>
+                <div class="pod-panel-tab" data-tab="terminal" onclick="switchPodTab('terminal')">💻 Terminal</div>
+            </div>
+            <div class="pod-panel-content">
+                <div id="pod-logs-view" style="display:flex;flex-direction:column;flex:1">
+                    <div class="log-toolbar">
+                        <button id="log-autoscroll">⬇ Auto-scroll ON</button>
+                        <button id="log-clear">🗑 Clear</button>
+                        <span id="log-status" class="log-status">● Ready</span>
+                    </div>
+                    <div class="log-viewer" id="log-content"></div>
+                </div>
+                <div id="pod-terminal-view" class="terminal-area" style="display:none">
+                    <div class="terminal-output" id="terminal-output">
+                        <div style="color:#8b949e">Welcome to Torresmo Terminal 🐷</div>
+                        <div style="color:#8b949e">Type commands to execute in the pod.</div>
+                        <div style="color:#8b949e">---</div>
+                    </div>
+                    <div class="terminal-input-wrap">
+                        <span class="terminal-prompt">$</span>
+                        <input type="text" class="terminal-input" id="terminal-input" placeholder="Type a command and press Enter..." autocomplete="off" spellcheck="false">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="pod-panel-overlay" onclick="closePodPanel()"></div>
     </div>
 
     <script>
@@ -1101,7 +1288,7 @@
                 $('pods-body').innerHTML = '<tr><td colspan="7" class="empty-state">No pods found</td></tr>';
             } else {
                 $('pods-body').innerHTML = pods.map(function(p) {
-                    return '<tr>' +
+                    return '<tr style="cursor:pointer" onclick="openPodPanel(\'' + escapeHtml(p.namespace) + '\',\'' + escapeHtml(p.name) + '\')">' +
                         '<td>' + nsBadge(p.namespace) + '</td>' +
                         '<td class="mono">' + escapeHtml(p.name) + '</td>' +
                         '<td class="mono">' + escapeHtml(p.image) + '</td>' +
@@ -1374,6 +1561,195 @@
         }
 
         connectSSE();
+
+        // --- Pod Detail Panel ---
+        var currentPod = null;
+        var logEventSource = null;
+        var terminalHistory = [];
+        var historyIndex = -1;
+
+        function openPodPanel(namespace, name) {
+            currentPod = { namespace: namespace, name: name };
+            var panel = $('pod-panel');
+
+            fetch('/api/pods/' + encodeURIComponent(namespace) + '/' + encodeURIComponent(name))
+                .then(function(r) { return r.json(); })
+                .then(function(pod) {
+                    renderPodInfo(pod);
+                    panel.classList.add('open');
+                    switchPodTab('logs');
+                });
+        }
+
+        function closePodPanel() {
+            $('pod-panel').classList.remove('open');
+            stopLogStream();
+            currentPod = null;
+        }
+
+        function renderPodInfo(pod) {
+            $('pod-panel-name').textContent = pod.name;
+            $('pod-panel-status').innerHTML = statusBadge(pod.phase);
+
+            var infoHtml = '';
+            var fields = [
+                ['Namespace', pod.namespace],
+                ['Image', pod.image],
+                ['Node', pod.node],
+                ['Pod IP', pod.podIP || '-'],
+                ['Restarts', pod.restarts],
+                ['Container ID', (pod.containerID || '').substring(0, 12) + '...'],
+            ];
+            fields.forEach(function(f) {
+                infoHtml += '<div class="pod-info-label">' + escapeHtml(f[0]) + '</div>';
+                infoHtml += '<div class="pod-info-value">' + escapeHtml(String(f[1])) + '</div>';
+            });
+
+            if (pod.labels && Object.keys(pod.labels).length > 0) {
+                infoHtml += '<div class="pod-info-label">Labels</div>';
+                infoHtml += '<div class="pod-info-value">' + Object.keys(pod.labels).map(function(k) {
+                    return '<span class="ns-badge ns-other" style="margin-right:4px;margin-bottom:2px">' + escapeHtml(k) + '=' + escapeHtml(pod.labels[k]) + '</span>';
+                }).join('') + '</div>';
+            }
+
+            if (pod.ports && pod.ports.length > 0) {
+                infoHtml += '<div class="pod-info-label">Ports</div>';
+                infoHtml += '<div class="pod-info-value">' + pod.ports.map(function(p) {
+                    return '<span class="ns-badge ns-default" style="margin-right:4px">' + escapeHtml(String(p.containerPort)) + '</span>';
+                }).join('') + '</div>';
+            }
+
+            $('pod-panel-info').innerHTML = infoHtml;
+        }
+
+        function switchPodTab(tab) {
+            document.querySelectorAll('.pod-panel-tab').forEach(function(t) { t.classList.remove('active'); });
+            document.querySelector('.pod-panel-tab[data-tab="' + tab + '"]').classList.add('active');
+
+            $('pod-logs-view').style.display = tab === 'logs' ? 'flex' : 'none';
+            $('pod-terminal-view').style.display = tab === 'terminal' ? 'flex' : 'none';
+
+            if (tab === 'logs') startLogStream();
+            else stopLogStream();
+        }
+
+        function startLogStream() {
+            stopLogStream();
+            if (!currentPod) return;
+
+            var viewer = $('log-content');
+            viewer.innerHTML = '';
+            var statusEl = $('log-status');
+            statusEl.textContent = '● Connecting...';
+            statusEl.style.color = 'var(--yellow)';
+
+            logEventSource = new EventSource('/api/pods/' + encodeURIComponent(currentPod.namespace) + '/' + encodeURIComponent(currentPod.name) + '/logs');
+            var lineCount = 0;
+            var autoScroll = true;
+
+            logEventSource.onmessage = function(e) {
+                var line = document.createElement('div');
+                line.className = 'log-line';
+                line.textContent = e.data;
+                viewer.appendChild(line);
+                lineCount++;
+
+                while (lineCount > 500) {
+                    viewer.removeChild(viewer.firstChild);
+                    lineCount--;
+                }
+
+                if (autoScroll) viewer.scrollTop = viewer.scrollHeight;
+                statusEl.textContent = '● Streaming';
+                statusEl.style.color = 'var(--green)';
+            };
+
+            logEventSource.onerror = function() {
+                statusEl.textContent = '● Disconnected';
+                statusEl.style.color = 'var(--red)';
+            };
+
+            $('log-autoscroll').onclick = function() {
+                autoScroll = !autoScroll;
+                this.textContent = autoScroll ? '⬇ Auto-scroll ON' : '⬇ Auto-scroll OFF';
+            };
+
+            $('log-clear').onclick = function() {
+                viewer.innerHTML = '';
+                lineCount = 0;
+            };
+        }
+
+        function stopLogStream() {
+            if (logEventSource) {
+                logEventSource.close();
+                logEventSource = null;
+            }
+        }
+
+        function execCommand() {
+            var input = $('terminal-input');
+            var command = input.value.trim();
+            if (!command || !currentPod) return;
+
+            var output = $('terminal-output');
+
+            terminalHistory.push(command);
+            historyIndex = terminalHistory.length;
+
+            output.innerHTML += '<div><span class="terminal-cmd">$ ' + escapeHtml(command) + '</span></div>';
+            input.value = '';
+
+            fetch('/api/pods/' + encodeURIComponent(currentPod.namespace) + '/' + encodeURIComponent(currentPod.name) + '/exec', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({command: command})
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+                if (res.output) {
+                    var cls = res.exitCode !== 0 ? 'terminal-error' : '';
+                    output.innerHTML += '<div class="' + cls + '">' + escapeHtml(res.output) + '</div>';
+                }
+                if (res.exitCode !== 0) {
+                    output.innerHTML += '<div class="terminal-error">[exit code: ' + res.exitCode + ']</div>';
+                }
+                output.scrollTop = output.scrollHeight;
+            })
+            .catch(function(err) {
+                output.innerHTML += '<div class="terminal-error">Error: ' + escapeHtml(err.message) + '</div>';
+            });
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closePodPanel();
+        });
+
+        (function() {
+            var input = $('terminal-input');
+            if (input) {
+                input.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        execCommand();
+                    } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        if (historyIndex > 0) {
+                            historyIndex--;
+                            input.value = terminalHistory[historyIndex];
+                        }
+                    } else if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        if (historyIndex < terminalHistory.length - 1) {
+                            historyIndex++;
+                            input.value = terminalHistory[historyIndex];
+                        } else {
+                            historyIndex = terminalHistory.length;
+                            input.value = '';
+                        }
+                    }
+                });
+            }
+        })();
 
         async function fetchData() {
             try {

@@ -1,6 +1,7 @@
 package dashboard
 
 import (
+	"bytes"
 	"context"
 	"embed"
 	"encoding/json"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/torresmo-dev/torresmo/internal/cluster"
 	"github.com/torresmo-dev/torresmo/internal/orchestrator"
+	"github.com/torresmo-dev/torresmo/internal/runtime"
 	"github.com/torresmo-dev/torresmo/internal/storage"
 )
 
@@ -24,6 +26,7 @@ type Server struct {
 	clusterMgr  *cluster.Manager
 	orch        *orchestrator.Orchestrator
 	store       storage.Store
+	runtime     runtime.ContainerRuntime
 	cluster     string
 	addr        string
 	liveUpdates chan []byte
@@ -31,11 +34,12 @@ type Server struct {
 	liveMu      sync.Mutex
 }
 
-func NewServer(mgr *cluster.Manager, orch *orchestrator.Orchestrator, store storage.Store, clusterName, addr string) *Server {
+func NewServer(mgr *cluster.Manager, orch *orchestrator.Orchestrator, store storage.Store, rt runtime.ContainerRuntime, clusterName, addr string) *Server {
 	return &Server{
 		clusterMgr: mgr,
 		orch:       orch,
 		store:      store,
+		runtime:    rt,
 		cluster:    clusterName,
 		addr:       addr,
 	}
@@ -69,6 +73,7 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.HandleFunc("/api/cluster", s.handleCluster)
 	mux.HandleFunc("/api/nodes", s.handleNodes)
 	mux.HandleFunc("/api/pods", s.handlePods)
+	mux.HandleFunc("/api/pods/", s.handlePodRoute)
 	mux.HandleFunc("/api/services", s.handleServices)
 	mux.HandleFunc("/api/deployments", s.handleDeployments)
 	mux.HandleFunc("/api/namespaces", s.handleNamespaces)
@@ -625,4 +630,212 @@ func (s *Server) handlePipelineLive(w http.ResponseWriter, r *http.Request) {
 			flusher.Flush()
 		}
 	}
+}
+
+// --- Pod detail, logs, and exec ---
+
+// PodDetailResponse contains detailed info about a specific pod.
+type PodDetailResponse struct {
+	Name        string                   `json:"name"`
+	Namespace   string                   `json:"namespace"`
+	Image       string                   `json:"image"`
+	Phase       string                   `json:"phase"`
+	Node        string                   `json:"node"`
+	PodIP       string                   `json:"podIP"`
+	Restarts    int                      `json:"restarts"`
+	ContainerID string                   `json:"containerID"`
+	Labels      map[string]string        `json:"labels,omitempty"`
+	Ports       []map[string]interface{} `json:"ports,omitempty"`
+	Env         []map[string]string      `json:"env,omitempty"`
+}
+
+// handlePodRoute dispatches /api/pods/{namespace}/{name}[/logs|/exec] routes.
+func (s *Server) handlePodRoute(w http.ResponseWriter, r *http.Request) {
+	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/pods/"), "/")
+
+	switch {
+	case len(parts) == 2:
+		s.handlePodDetail(w, r)
+	case len(parts) == 3 && parts[2] == "logs":
+		s.handlePodLogs(w, r)
+	case len(parts) == 3 && parts[2] == "exec":
+		s.handlePodExec(w, r)
+	default:
+		s.handlePods(w, r)
+	}
+}
+
+func (s *Server) handlePodDetail(w http.ResponseWriter, r *http.Request) {
+	parts := strings.Split(r.URL.Path, "/")
+	// /api/pods/{namespace}/{name} → ["", "api", "pods", "{ns}", "{name}"]
+	if len(parts) < 5 {
+		s.writeError(w, http.StatusBadRequest, "invalid pod path")
+		return
+	}
+	namespace := parts[3]
+	podName := parts[4]
+
+	ctx := r.Context()
+	pod, err := s.store.GetPod(ctx, s.cluster, namespace, podName)
+	if err != nil {
+		s.writeError(w, http.StatusNotFound, "pod not found")
+		return
+	}
+
+	resp := PodDetailResponse{
+		Name:        pod.Name,
+		Namespace:   pod.Namespace,
+		Image:       pod.Image,
+		Phase:       pod.Phase,
+		Node:        pod.Node,
+		PodIP:       pod.PodIP,
+		Restarts:    pod.Restarts,
+		ContainerID: pod.ContainerID,
+	}
+
+	if pod.Labels != "" {
+		_ = json.Unmarshal([]byte(pod.Labels), &resp.Labels)
+	}
+	if pod.Ports != "" {
+		_ = json.Unmarshal([]byte(pod.Ports), &resp.Ports)
+	}
+	if pod.Env != "" {
+		_ = json.Unmarshal([]byte(pod.Env), &resp.Env)
+	}
+
+	s.writeJSON(w, resp)
+}
+
+func (s *Server) handlePodLogs(w http.ResponseWriter, r *http.Request) {
+	parts := strings.Split(r.URL.Path, "/")
+	// /api/pods/{ns}/{name}/logs → ["", "api", "pods", "{ns}", "{name}", "logs"]
+	if len(parts) < 6 {
+		s.writeError(w, http.StatusBadRequest, "invalid pod logs path")
+		return
+	}
+	namespace := parts[3]
+	podName := parts[4]
+
+	ctx := r.Context()
+	pod, err := s.store.GetPod(ctx, s.cluster, namespace, podName)
+	if err != nil {
+		s.writeError(w, http.StatusNotFound, "pod not found")
+		return
+	}
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		s.writeError(w, http.StatusInternalServerError, "streaming not supported")
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	reader, err := s.runtime.ContainerLogs(ctx, pod.ContainerID, runtime.LogOptions{
+		Follow:     true,
+		Tail:       "100",
+		Timestamps: true,
+	})
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, "failed to get logs")
+		return
+	}
+	defer func() { _ = reader.Close() }()
+
+	buf := make([]byte, 4096)
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		default:
+		}
+
+		n, readErr := reader.Read(buf)
+		if n > 0 {
+			lines := strings.Split(string(buf[:n]), "\n")
+			for _, line := range lines {
+				line = strings.TrimSpace(line)
+				if line == "" {
+					continue
+				}
+				clean := stripDockerLogHeader(line)
+				_, _ = fmt.Fprintf(w, "data: %s\n\n", clean)
+				flusher.Flush()
+			}
+		}
+		if readErr != nil {
+			return
+		}
+	}
+}
+
+// stripDockerLogHeader removes the 8-byte Docker log stream header if present.
+// Docker multiplexed log format: first byte is stream type (1=stdout, 2=stderr),
+// bytes 1-3 are padding, bytes 4-7 are length (big-endian uint32).
+func stripDockerLogHeader(line string) string {
+	if len(line) > 8 && (line[0] == 1 || line[0] == 2) {
+		return line[8:]
+	}
+	return line
+}
+
+func (s *Server) handlePodExec(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		s.writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	parts := strings.Split(r.URL.Path, "/")
+	// /api/pods/{ns}/{name}/exec → ["", "api", "pods", "{ns}", "{name}", "exec"]
+	if len(parts) < 6 {
+		s.writeError(w, http.StatusBadRequest, "invalid pod exec path")
+		return
+	}
+	namespace := parts[3]
+	podName := parts[4]
+
+	var req struct {
+		Command string `json:"command"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	ctx := r.Context()
+	pod, err := s.store.GetPod(ctx, s.cluster, namespace, podName)
+	if err != nil {
+		s.writeError(w, http.StatusNotFound, "pod not found")
+		return
+	}
+
+	var stdout bytes.Buffer
+	cmd := []string{"sh", "-c", req.Command}
+	result, err := s.runtime.ExecInContainer(ctx, pod.ContainerID, cmd, runtime.ExecOptions{
+		Stdout: &stdout,
+	})
+
+	var output string
+	if stdout.Len() > 0 {
+		output = stripDockerLogHeader(stdout.String())
+	} else if result != nil {
+		output = stripDockerLogHeader(result.Output)
+	}
+
+	exitCode := 0
+	if result != nil {
+		exitCode = result.ExitCode
+	}
+	if err != nil && output == "" {
+		output = err.Error()
+		exitCode = 1
+	}
+
+	s.writeJSON(w, map[string]interface{}{
+		"output":   output,
+		"exitCode": exitCode,
+	})
 }
