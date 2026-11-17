@@ -1,4 +1,4 @@
-# 🐷 Torresmo
+# <img src="docs/assets/logo.png" width="40" alt="Torresmo Logo"> Torresmo
 
 **Development infrastructure in one binary.**
 
