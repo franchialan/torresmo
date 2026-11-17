@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Torresmo — Development infrastructure in one binary</title>
+<meta name="description" content="Torresmo is a container orchestrator for local development. From git clone to full stack in one command.">
+<meta name="theme-color" content="#0d1117">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{
+  background:#0d1117;
+  color:#e6edf3;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji";
+  line-height:1.6;
+  overflow-x:hidden;
+}
+a{color:#58a6ff;text-decoration:none;transition:color .2s}
+a:hover{color:#79c0ff}
+code,pre,.mono{font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace}
+
+/* ── Layout ── */
+.container{max-width:1120px;margin:0 auto;padding:0 24px}
+section{padding:96px 0}
+.section-title{font-size:2rem;font-weight:700;text-align:center;margin-bottom:12px}
+.section-subtitle{text-align:center;color:#8b949e;font-size:1.125rem;max-width:640px;margin:0 auto 56px}
+
+/* ── Fade-in on scroll ── */
+.fade-in{opacity:0;transform:translateY(24px);transition:opacity .6s ease,transform .6s ease}
+.fade-in.visible{opacity:1;transform:translateY(0)}
+
+/* ── Buttons ── */
+.btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:12px 28px;border-radius:8px;font-size:.9375rem;font-weight:600;
+  transition:transform .2s,box-shadow .2s,background .2s;
+  cursor:pointer;border:none;
+}
+.btn:hover{transform:translateY(-2px)}
+.btn-primary{
+  background:linear-gradient(135deg,#58a6ff,#bc8cff);
+  color:#fff;
+}
+.btn-primary:hover{box-shadow:0 4px 24px rgba(88,166,255,.35);color:#fff}
+.btn-secondary{
+  background:transparent;border:1px solid #30363d;color:#e6edf3;
+}
+.btn-secondary:hover{border-color:#58a6ff;color:#58a6ff}
+
+/* ── Card base ── */
+.card{
+  background:#161b22;border:1px solid #30363d;border-radius:12px;
+  padding:28px;transition:transform .25s,box-shadow .25s,border-color .25s;
+}
+.card:hover{transform:translateY(-4px);box-shadow:0 8px 30px rgba(0,0,0,.4);border-color:#58a6ff33}
+
+/* ═══════════════════════════════════════════
+   Hero
+   ═══════════════════════════════════════════ */
+.hero{
+  min-height:100vh;display:flex;align-items:center;
+  padding-top:80px;padding-bottom:80px;
+  position:relative;overflow:hidden;
+}
+.hero::before{
+  content:'';position:absolute;top:-200px;left:50%;transform:translateX(-50%);
+  width:800px;height:800px;
+  background:radial-gradient(circle,rgba(88,166,255,.08) 0%,rgba(188,140,255,.06) 40%,transparent 70%);
+  pointer-events:none;
+}
+.hero-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center;
+  position:relative;z-index:1;
+}
+.hero-badge{
+  display:inline-block;font-size:.8125rem;font-weight:600;
+  padding:4px 14px;border-radius:20px;
+  background:rgba(88,166,255,.12);color:#58a6ff;
+  margin-bottom:20px;letter-spacing:.02em;
+}
+.hero h1{
+  font-size:3.5rem;font-weight:800;line-height:1.1;margin-bottom:16px;
+}
+.hero h1 .gradient{
+  background:linear-gradient(135deg,#58a6ff,#bc8cff);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+.hero .tagline{font-size:1.25rem;color:#8b949e;margin-bottom:32px;max-width:480px}
+.hero-buttons{display:flex;gap:12px;flex-wrap:wrap}
+
+/* Terminal mockup */
+.terminal{
+  background:#0d1117;border:1px solid #30363d;border-radius:12px;
+  overflow:hidden;font-size:.8125rem;line-height:1.7;
+  box-shadow:0 16px 48px rgba(0,0,0,.5);
+}
+.terminal-bar{
+  display:flex;align-items:center;gap:8px;
+  padding:12px 16px;background:#161b22;border-bottom:1px solid #30363d;
+}
+.terminal-dot{width:12px;height:12px;border-radius:50%}
+.terminal-dot.red{background:#ff5f57}.terminal-dot.yellow{background:#febc2e}.terminal-dot.green{background:#28c840}
+.terminal-title{color:#8b949e;font-size:.75rem;margin-left:auto;font-family:inherit}
+.terminal-body{padding:20px;min-height:200px}
+.terminal-body .line{white-space:pre;opacity:0}
+.terminal-body .line.show{opacity:1;animation:fadeLineIn .3s ease forwards}
+@keyframes fadeLineIn{from{opacity:0;transform:translateX(-4px)}to{opacity:1;transform:translateX(0)}}
+.t-prompt{color:#3fb950}.t-cmd{color:#e6edf3}.t-flag{color:#58a6ff}
+.t-emoji{}.t-success{color:#3fb950}.t-muted{color:#8b949e}
+.t-highlight{color:#bc8cff}
+
+/* ═══════════════════════════════════════════
+   Problem
+   ═══════════════════════════════════════════ */
+.problem-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.problem-card{text-align:center;padding:36px 28px}
+.problem-card .icon{font-size:2.5rem;margin-bottom:16px;display:block}
+.problem-card h3{font-size:1.125rem;margin-bottom:8px}
+.problem-card p{color:#8b949e;font-size:.875rem}
+.problem-card.highlighted{
+  border-color:#58a6ff55;
+  background:linear-gradient(135deg,rgba(88,166,255,.06),rgba(188,140,255,.06));
+}
+.problem-card.highlighted h3{
+  background:linear-gradient(135deg,#58a6ff,#bc8cff);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+
+/* ═══════════════════════════════════════════
+   Features
+   ═══════════════════════════════════════════ */
+.features-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.feature-card .icon{font-size:2rem;margin-bottom:12px;display:block}
+.feature-card h3{font-size:1rem;font-weight:600;margin-bottom:6px}
+.feature-card p{color:#8b949e;font-size:.875rem}
+
+/* ═══════════════════════════════════════════
+   How It Works
+   ═══════════════════════════════════════════ */
+.steps{display:flex;gap:0;align-items:flex-start;position:relative;justify-content:center;flex-wrap:wrap}
+.step{flex:1;min-width:240px;max-width:340px;text-align:center;padding:0 16px;position:relative}
+.step-number{
+  width:48px;height:48px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
+  font-weight:700;font-size:1.125rem;
+  background:linear-gradient(135deg,#58a6ff,#bc8cff);color:#fff;
+  margin-bottom:16px;
+}
+.step h3{font-size:.9375rem;font-weight:600;margin-bottom:8px}
+.step code{
+  display:block;font-size:.75rem;color:#8b949e;
+  background:#0d1117;border:1px solid #30363d;border-radius:8px;
+  padding:12px;text-align:left;word-break:break-all;
+  margin-top:8px;
+}
+.step-connector{
+  position:absolute;top:24px;right:-24px;width:48px;height:2px;
+  background:linear-gradient(90deg,#58a6ff,#bc8cff);
+}
+@media(max-width:768px){.step-connector{display:none}}
+
+/* ═══════════════════════════════════════════
+   Templates
+   ═══════════════════════════════════════════ */
+.templates-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.template-card{padding:20px}
+.template-card h4{font-size:.875rem;font-weight:600;margin-bottom:4px;font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace}
+.template-card p{color:#8b949e;font-size:.8125rem;margin-bottom:10px}
+.badge-row{display:flex;flex-wrap:wrap;gap:4px}
+.badge{
+  font-size:.6875rem;padding:2px 8px;border-radius:10px;
+  background:rgba(88,166,255,.12);color:#58a6ff;
+  font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+}
+.badge.none{background:rgba(139,148,158,.12);color:#8b949e}
+
+/* ═══════════════════════════════════════════
+   Comparison Table
+   ═══════════════════════════════════════════ */
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:12px;border:1px solid #30363d}
+table{width:100%;border-collapse:collapse;font-size:.875rem;min-width:640px}
+thead{background:#161b22}
+th{padding:14px 16px;text-align:left;font-weight:600;border-bottom:1px solid #30363d;white-space:nowrap}
+td{padding:12px 16px;border-bottom:1px solid #30363d33}
+tr:last-child td{border-bottom:none}
+tbody tr:hover{background:#161b2266}
+th:first-child,td:first-child{min-width:200px}
+.check{color:#3fb950}.cross{color:#f85149}.warn{color:#d29922}
+
+/* ═══════════════════════════════════════════
+   Install
+   ═══════════════════════════════════════════ */
+#install{background:linear-gradient(180deg,#0d1117,#0d1117)}
+.install-methods{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:24px}
+.code-block{
+  position:relative;background:#0d1117;border:1px solid #30363d;border-radius:10px;
+  padding:20px 48px 20px 20px;overflow-x:auto;
+}
+.code-block pre{font-size:.8125rem;line-height:1.7;white-space:pre;color:#e6edf3}
+.code-block .comment{color:#8b949e}
+.code-block .cmd-prefix{color:#3fb950}
+.code-block .flag{color:#58a6ff}
+.copy-btn{
+  position:absolute;top:12px;right:12px;
+  background:#21262d;border:1px solid #30363d;border-radius:6px;
+  color:#8b949e;padding:6px 8px;cursor:pointer;font-size:.75rem;
+  transition:color .2s,border-color .2s;
+  display:flex;align-items:center;gap:4px;
+}
+.copy-btn:hover{color:#e6edf3;border-color:#58a6ff}
+.copy-btn.copied{color:#3fb950;border-color:#3fb950}
+.install-label{font-size:.8125rem;color:#8b949e;margin-bottom:8px;font-weight:600}
+
+/* ═══════════════════════════════════════════
+   Dashboard Preview
+   ═══════════════════════════════════════════ */
+.dashboard-mock{
+  background:#0d1117;border:1px solid #30363d;border-radius:12px;
+  overflow:hidden;max-width:900px;margin:0 auto;
+  box-shadow:0 16px 48px rgba(0,0,0,.5);
+}
+.dash-header{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:16px 20px;background:#161b22;border-bottom:1px solid #30363d;
+}
+.dash-header-left{display:flex;align-items:center;gap:10px}
+.dash-header-left span:first-child{font-size:1.25rem}
+.dash-header-left strong{font-size:.875rem}
+.dash-status{display:flex;align-items:center;gap:6px;font-size:.75rem;color:#3fb950}
+.dash-dot{width:8px;height:8px;border-radius:50%;background:#3fb950;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.dash-body{padding:20px}
+.dash-section-title{font-size:.75rem;color:#8b949e;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px}
+.dash-table{width:100%;font-size:.75rem;border-collapse:collapse;margin-bottom:24px}
+.dash-table th{text-align:left;padding:8px 12px;color:#8b949e;font-weight:600;border-bottom:1px solid #30363d}
+.dash-table td{padding:8px 12px;border-bottom:1px solid #30363d33}
+.dash-table .status-running{color:#3fb950}
+.dash-role{
+  font-size:.625rem;padding:2px 6px;border-radius:4px;
+  background:rgba(88,166,255,.12);color:#58a6ff;
+}
+.dash-role.worker{background:rgba(139,148,158,.12);color:#8b949e}
+
+/* ═══════════════════════════════════════════
+   Footer
+   ═══════════════════════════════════════════ */
+footer{
+  border-top:1px solid #30363d;padding:48px 0;
+  text-align:center;color:#8b949e;font-size:.875rem;
+}
+.footer-links{display:flex;justify-content:center;gap:24px;flex-wrap:wrap;margin-bottom:16px}
+.footer-links a{color:#8b949e;font-size:.8125rem}
+.footer-links a:hover{color:#58a6ff}
+footer p{margin-top:8px}
+
+/* ═══════════════════════════════════════════
+   Responsive
+   ═══════════════════════════════════════════ */
+@media(max-width:960px){
+  .hero-grid{grid-template-columns:1fr;gap:48px;text-align:center}
+  .hero .tagline{margin-left:auto;margin-right:auto}
+  .hero-buttons{justify-content:center}
+  .features-grid{grid-template-columns:repeat(2,1fr)}
+  .templates-grid{grid-template-columns:repeat(2,1fr)}
+  .problem-grid{grid-template-columns:1fr}
+}
+@media(max-width:640px){
+  .hero h1{font-size:2.5rem}
+  section{padding:64px 0}
+  .section-title{font-size:1.5rem}
+  .features-grid{grid-template-columns:1fr}
+  .templates-grid{grid-template-columns:1fr}
+  .install-methods{grid-template-columns:1fr}
+  .steps{flex-direction:column;align-items:center}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════ Hero ═══════════ -->
+<section class="hero">
+<div class="container">
+<div class="hero-grid">
+  <div>
+    <span class="hero-badge">Open Source &middot; MIT License</span>
+    <h1>🐷 <span class="gradient">Torresmo</span></h1>
+    <p class="tagline">Development infrastructure in one binary.<br>From <code>git clone</code> to full stack in one command.</p>
+    <div class="hero-buttons">
+      <a href="#install" class="btn btn-primary">Get Started →</a>
+      <a href="https://github.com/franchialan/torresmo" class="btn btn-secondary" target="_blank" rel="noopener">GitHub →</a>
+    </div>
+  </div>
+  <div>
+    <div class="terminal" role="img" aria-label="Terminal showing torresmo creating a cluster">
+      <div class="terminal-bar">
+        <span class="terminal-dot red"></span>
+        <span class="terminal-dot yellow"></span>
+        <span class="terminal-dot green"></span>
+        <span class="terminal-title">Terminal</span>
+      </div>
+      <div class="terminal-body" id="hero-terminal">
+        <div class="line" data-delay="300"><span class="t-prompt">$ </span><span class="t-cmd">torresmo create cluster </span><span class="t-flag">-t fullstack --name dev</span></div>
+        <div class="line" data-delay="900"><span class="t-highlight">🐷 Creating cluster "dev" with 3 nodes (profile: standard)...</span></div>
+        <div class="line" data-delay="1600"><span class="t-success">✓</span> Cluster "dev" is ready!</div>
+        <div class="line" data-delay="2100"><span class="t-muted">  </span><span class="t-success">✓</span><span class="t-muted"> redis installed</span></div>
+        <div class="line" data-delay="2400"><span class="t-muted">  </span><span class="t-success">✓</span><span class="t-muted"> postgres installed</span></div>
+        <div class="line" data-delay="2700"><span class="t-muted">  </span><span class="t-success">✓</span><span class="t-muted"> prometheus installed</span></div>
+        <div class="line" data-delay="3000"><span class="t-muted">  </span><span class="t-success">✓</span><span class="t-muted"> grafana installed</span></div>
+        <div class="line" data-delay="3500"><span class="t-prompt">$ </span><span class="t-cmd blink-cursor">▌</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</section>
+
+<!-- ═══════════ Problem ═══════════ -->
+<section class="fade-in">
+<div class="container">
+  <h2 class="section-title">The Problem</h2>
+  <p class="section-subtitle">Setting up local dev environments shouldn't take hours. Yet developers face a painful choice.</p>
+  <div class="problem-grid">
+    <div class="card problem-card">
+      <span class="icon">🐋</span>
+      <h3>Docker Compose</h3>
+      <p>Simple but limited. No orchestration, no service mesh, no pipelines, no dashboards.</p>
+    </div>
+    <div class="card problem-card">
+      <span class="icon">☸️</span>
+      <h3>KinD + kubectl + Helm</h3>
+      <p>Powerful but complex. 5+ tools, steep learning curve, endless YAML configuration.</p>
+    </div>
+    <div class="card problem-card highlighted">
+      <span class="icon">🐷</span>
+      <h3>Torresmo</h3>
+      <p>Best of both worlds. The simplicity of Compose with the power of Kubernetes.</p>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════ Features ═══════════ -->
+<section class="fade-in">
+<div class="container">
+  <h2 class="section-title">Features</h2>
+  <p class="section-subtitle">Everything you need for local development, nothing you don't.</p>
+  <div class="features-grid">
+    <div class="card feature-card">
+      <span class="icon">🚀</span>
+      <h3>One-Command Setup</h3>
+      <p>From zero to full stack in 30 seconds. Templates, addons, and clusters — one command.</p>
+    </div>
+    <div class="card feature-card">
+      <span class="icon">🤖</span>
+      <h3>AI-Powered CLI</h3>
+      <p>Talk to your cluster in plain English. Powered by Ollama running locally.</p>
+    </div>
+    <div class="card feature-card">
+      <span class="icon">📦</span>
+      <h3>10 Built-in Addons</h3>
+      <p>Redis, Postgres, Kafka, MongoDB, Prometheus, Grafana, and more — pre-configured.</p>
+    </div>
+    <div class="card feature-card">
+      <span class="icon">🔧</span>
+      <h3>Local Pipelines</h3>
+      <p>CI/CD in containers, same as production. Dependency graphs and parallel execution.</p>
+    </div>
+    <div class="card feature-card">
+      <span class="icon">📸</span>
+      <h3>Snapshots</h3>
+      <p>Save and restore your entire cluster state. Perfect for risky migrations.</p>
+    </div>
+    <div class="card feature-card">
+      <span class="icon">🐳</span>
+      <h3>Compose Migration</h3>
+      <p>Import your docker-compose.yaml in seconds. Auto-detect known services.</p>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════ How It Works ═══════════ -->
+<section class="fade-in">
+<div class="container">
+  <h2 class="section-title">How It Works</h2>
+  <p class="section-subtitle">Three steps. That's it.</p>
+  <div class="steps">
+    <div class="step">
+      <div class="step-number">1</div>
+      <h3>Install</h3>
+      <code>brew tap franchialan/torresmo<br>&amp;&amp; brew install torresmo</code>
+      <span class="step-connector"></span>
+    </div>
+    <div class="step">
+      <div class="step-number">2</div>
+      <h3>Create</h3>
+      <code>torresmo create cluster<br>-t go-api --name dev</code>
+      <span class="step-connector"></span>
+    </div>
+    <div class="step">
+      <div class="step-number">3</div>
+      <h3>Ship</h3>
+      <code>torresmo dashboard --web</code>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════ Templates ═══════════ -->
+<section class="fade-in">
+<div class="container">
+  <h2 class="section-title">Templates</h2>
+  <p class="section-subtitle">Pre-built stacks for every project. Create your own or use one of ours.</p>
+  <div class="templates-grid">
+    <div class="card template-card">
+      <h4>minimal</h4>
+      <p>Single-node, no addons</p>
+      <div class="badge-row"><span class="badge none">—</span></div>
+    </div>
+    <div class="card template-card">
+      <h4>go-api</h4>
+      <p>Go API backend</p>
+      <div class="badge-row"><span class="badge">Redis</span><span class="badge">Postgres</span><span class="badge">Prometheus</span></div>
+    </div>
+    <div class="card template-card">
+      <h4>node-fullstack</h4>
+      <p>Node.js + React</p>
+      <div class="badge-row"><span class="badge">Redis</span><span class="badge">Postgres</span></div>
+    </div>
+    <div class="card template-card">
+      <h4>java-spring</h4>
+      <p>Spring Boot microservices</p>
+      <div class="badge-row"><span class="badge">Postgres</span><span class="badge">Prometheus</span><span class="badge">Grafana</span></div>
+    </div>
+    <div class="card template-card">
+      <h4>python-ml</h4>
+      <p>Python ML/Data stack</p>
+      <div class="badge-row"><span class="badge">Postgres</span><span class="badge">Redis</span></div>
+    </div>
+    <div class="card template-card">
+      <h4>microservices</h4>
+      <p>Service mesh + tracing</p>
+      <div class="badge-row"><span class="badge">Istio</span><span class="badge">Jaeger</span><span class="badge">Prometheus</span><span class="badge">Grafana</span></div>
+    </div>
+    <div class="card template-card">
+      <h4>data-pipeline</h4>
+      <p>Streaming + storage</p>
+      <div class="badge-row"><span class="badge">Kafka</span><span class="badge">Postgres</span><span class="badge">Redis</span><span class="badge">MinIO</span></div>
+    </div>
+    <div class="card template-card">
+      <h4>fullstack</h4>
+      <p>Full monitoring stack</p>
+      <div class="badge-row"><span class="badge">Redis</span><span class="badge">Postgres</span><span class="badge">Prometheus</span><span class="badge">Grafana</span></div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════ Comparison Table ═══════════ -->
+<section class="fade-in">
+<div class="container">
+  <h2 class="section-title">Comparison</h2>
+  <p class="section-subtitle">See how Torresmo stacks up against the alternatives.</p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Feature</th><th>Docker Compose</th><th>KinD + kubectl</th><th>Torresmo</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>One-command setup</td><td class="cross">✗</td><td class="cross">✗</td><td class="check">✓ <code>torresmo up</code></td></tr>
+        <tr><td>Multi-node clusters</td><td class="cross">✗</td><td class="check">✓</td><td class="check">✓</td></tr>
+        <tr><td>Built-in addons</td><td class="cross">✗ Manual</td><td class="warn">⚠ Helm</td><td class="check">✓ <code>addon install</code></td></tr>
+        <tr><td>Local CI/CD pipelines</td><td class="cross">✗</td><td class="cross">✗</td><td class="check">✓ <code>pipeline run</code></td></tr>
+        <tr><td>AI-powered CLI</td><td class="cross">✗</td><td class="cross">✗</td><td class="check">✓ Natural language</td></tr>
+        <tr><td>Dashboard</td><td class="cross">✗</td><td class="cross">✗</td><td class="check">✓ TUI &amp; Web</td></tr>
+        <tr><td>Snapshots</td><td class="cross">✗</td><td class="cross">✗</td><td class="check">✓ <code>snapshot create</code></td></tr>
+        <tr><td>Pre-built templates</td><td class="cross">✗</td><td class="cross">✗</td><td class="check">✓ 8 templates</td></tr>
+        <tr><td>Hot-reload dev mode</td><td class="cross">✗</td><td class="cross">✗</td><td class="check">✓ <code>dev start</code></td></tr>
+        <tr><td>Compose migration</td><td>N/A</td><td class="cross">✗</td><td class="check">✓ <code>compose import</code></td></tr>
+        <tr><td>Tools required</td><td>1 (Docker)</td><td>5+</td><td><strong>1</strong> (torresmo)</td></tr>
+        <tr><td>Learning curve</td><td>Low</td><td>High</td><td><strong>Low</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════ Install ═══════════ -->
+<section id="install" class="fade-in">
+<div class="container">
+  <h2 class="section-title">Installation</h2>
+  <p class="section-subtitle">Get up and running in under a minute.</p>
+  <div class="install-methods">
+    <div>
+      <div class="install-label">Homebrew (macOS / Linux)</div>
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25z"/><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25z"/></svg>
+          Copy
+        </button>
+<pre><span class="cmd-prefix">$</span> brew tap franchialan/torresmo
+<span class="cmd-prefix">$</span> brew install torresmo</pre>
+      </div>
+    </div>
+    <div>
+      <div class="install-label">Shell script</div>
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25z"/><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25z"/></svg>
+          Copy
+        </button>
+<pre><span class="cmd-prefix">$</span> curl <span class="flag">-fsSL</span> https://raw.githubusercontent.com/franchialan/torresmo/main/scripts/install.sh | bash</pre>
+      </div>
+    </div>
+    <div>
+      <div class="install-label">From source</div>
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25z"/><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25z"/></svg>
+          Copy
+        </button>
+<pre><span class="cmd-prefix">$</span> go install github.com/torresmo-dev/torresmo/cmd/torresmo@latest</pre>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════ Dashboard Preview ═══════════ -->
+<section class="fade-in">
+<div class="container">
+  <h2 class="section-title">Built-in Dashboard</h2>
+  <p class="section-subtitle">Monitor your cluster in real-time. No external tools required.</p>
+  <div class="dashboard-mock">
+    <div class="dash-header">
+      <div class="dash-header-left">
+        <span>🐷</span>
+        <strong>Torresmo Dashboard</strong>
+        <span style="color:#8b949e;font-size:.75rem">cluster: dev</span>
+      </div>
+      <div class="dash-status"><span class="dash-dot"></span> Connected</div>
+    </div>
+    <div class="dash-body">
+      <div class="dash-section-title">Nodes (3)</div>
+      <table class="dash-table">
+        <thead><tr><th>Name</th><th>Role</th><th>Status</th><th>Address</th></tr></thead>
+        <tbody>
+          <tr><td style="font-family:monospace">dev-control-plane</td><td><span class="dash-role">control-plane</span></td><td class="status-running">● Running</td><td style="color:#8b949e">10.244.0.2</td></tr>
+          <tr><td style="font-family:monospace">dev-worker-1</td><td><span class="dash-role worker">worker</span></td><td class="status-running">● Running</td><td style="color:#8b949e">10.244.0.3</td></tr>
+          <tr><td style="font-family:monospace">dev-worker-2</td><td><span class="dash-role worker">worker</span></td><td class="status-running">● Running</td><td style="color:#8b949e">10.244.0.4</td></tr>
+        </tbody>
+      </table>
+      <div class="dash-section-title">Pods (4)</div>
+      <table class="dash-table">
+        <thead><tr><th>Namespace</th><th>Name</th><th>Image</th><th>Status</th><th>Node</th></tr></thead>
+        <tbody>
+          <tr><td style="color:#8b949e">default</td><td style="font-family:monospace">redis-0</td><td style="color:#8b949e;font-size:.6875rem">redis:7.2-alpine</td><td class="status-running">● Running</td><td style="color:#8b949e">dev-worker-1</td></tr>
+          <tr><td style="color:#8b949e">default</td><td style="font-family:monospace">postgres-0</td><td style="color:#8b949e;font-size:.6875rem">postgres:16-alpine</td><td class="status-running">● Running</td><td style="color:#8b949e">dev-worker-2</td></tr>
+          <tr><td style="color:#8b949e">default</td><td style="font-family:monospace">prometheus-0</td><td style="color:#8b949e;font-size:.6875rem">prom/prometheus:v2.51.0</td><td class="status-running">● Running</td><td style="color:#8b949e">dev-worker-1</td></tr>
+          <tr><td style="color:#8b949e">default</td><td style="font-family:monospace">grafana-0</td><td style="color:#8b949e;font-size:.6875rem">grafana/grafana:10.4.0</td><td class="status-running">● Running</td><td style="color:#8b949e">dev-worker-2</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════ Footer ═══════════ -->
+<footer>
+<div class="container">
+  <div class="footer-links">
+    <a href="https://github.com/franchialan/torresmo" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://github.com/franchialan/torresmo/blob/main/docs/getting-started.md" target="_blank" rel="noopener">Documentation</a>
+    <a href="https://github.com/franchialan/torresmo/blob/main/docs/cli-reference.md" target="_blank" rel="noopener">CLI Reference</a>
+    <a href="https://github.com/franchialan/torresmo/blob/main/docs/addons.md" target="_blank" rel="noopener">Addons</a>
+    <a href="https://github.com/franchialan/torresmo/blob/main/docs/torresmofile.md" target="_blank" rel="noopener">Torresmofile Guide</a>
+  </div>
+  <p>Made with 🐷 by the Torresmo community</p>
+  <p style="margin-top:4px"><a href="https://github.com/franchialan/torresmo/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a></p>
+</div>
+</footer>
+
+<script>
+// Terminal typing animation
+(function(){
+  var lines = document.querySelectorAll('#hero-terminal .line');
+  lines.forEach(function(line){
+    var delay = parseInt(line.getAttribute('data-delay'),10)||0;
+    setTimeout(function(){line.classList.add('show')},delay);
+  });
+})();
+
+// Fade-in on scroll (IntersectionObserver)
+(function(){
+  var els = document.querySelectorAll('.fade-in');
+  if(!('IntersectionObserver' in window)){
+    els.forEach(function(el){el.classList.add('visible')});
+    return;
+  }
+  var obs = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting){e.target.classList.add('visible');obs.unobserve(e.target)}
+    });
+  },{threshold:0.12});
+  els.forEach(function(el){obs.observe(el)});
+})();
+
+// Copy button
+function copyCode(btn){
+  var pre = btn.parentElement.querySelector('pre');
+  var text = pre.textContent.replace(/^\$ /gm,'');
+  navigator.clipboard.writeText(text).then(function(){
+    btn.classList.add('copied');
+    btn.querySelector('svg').nextSibling.textContent=' Copied!';
+    setTimeout(function(){
+      btn.classList.remove('copied');
+      btn.querySelector('svg').nextSibling.textContent=' Copy';
+    },2000);
+  });
+}
+</script>
+</body>
+</html>
