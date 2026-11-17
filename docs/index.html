@@ -217,7 +217,7 @@ th:first-child,td:first-child{min-width:200px}
    ═══════════════════════════════════════════ */
 .dashboard-mock{
   background:#0d1117;border:1px solid #30363d;border-radius:12px;
-  overflow:hidden;max-width:900px;margin:0 auto;
+  overflow:hidden;max-width:960px;margin:0 auto;
   box-shadow:0 16px 48px rgba(0,0,0,.5);
 }
 .dash-header{
@@ -230,17 +230,43 @@ th:first-child,td:first-child{min-width:200px}
 .dash-status{display:flex;align-items:center;gap:6px;font-size:.75rem;color:#3fb950}
 .dash-dot{width:8px;height:8px;border-radius:50%;background:#3fb950;animation:pulse 2s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.dash-tabs{display:flex;gap:0;border-bottom:1px solid #30363d;background:#161b22}
+.dash-tab{
+  padding:10px 20px;font-size:.8rem;color:#8b949e;cursor:pointer;
+  border-bottom:2px solid transparent;transition:all .2s;font-weight:500;
+}
+.dash-tab:hover{color:#e6edf3;background:rgba(88,166,255,.05)}
+.dash-tab.active{color:#58a6ff;border-bottom-color:#58a6ff}
+.dash-view{display:none;padding:20px}
+.dash-view.active{display:block}
+.dash-stats{display:flex;gap:12px;margin-bottom:20px}
+.dash-stat{
+  flex:1;background:#161b22;border:1px solid #30363d;border-radius:8px;
+  padding:12px 16px;text-align:center;
+}
+.dash-stat-num{font-size:1.5rem;font-weight:700;color:#e6edf3}
+.dash-stat-label{font-size:.6875rem;color:#8b949e;margin-top:2px}
 .dash-body{padding:20px}
 .dash-section-title{font-size:.75rem;color:#8b949e;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px}
-.dash-table{width:100%;font-size:.75rem;border-collapse:collapse;margin-bottom:24px}
+.dash-table{width:100%;font-size:.8rem;border-collapse:collapse;margin-bottom:24px}
 .dash-table th{text-align:left;padding:8px 12px;color:#8b949e;font-weight:600;border-bottom:1px solid #30363d}
 .dash-table td{padding:8px 12px;border-bottom:1px solid #30363d33}
 .dash-table .status-running{color:#3fb950}
+.dash-table .status-failed{color:#f85149}
 .dash-role{
-  font-size:.625rem;padding:2px 6px;border-radius:4px;
+  font-size:.6875rem;padding:2px 8px;border-radius:4px;
   background:rgba(88,166,255,.12);color:#58a6ff;
 }
 .dash-role.worker{background:rgba(139,148,158,.12);color:#8b949e}
+.dash-badge{background:#21262d;padding:2px 8px;border-radius:10px;font-size:.6875rem;color:#bc8cff}
+.dash-event{font-size:.8rem;color:#8b949e;padding:6px 0;border-bottom:1px solid #30363d22}
+.dash-event-time{font-family:monospace;color:#8b949e;margin-right:8px}
+.dash-event-normal{color:#3fb950}
+.dash-event-warning{color:#d29922}
+.dash-pipeline-steps{margin:8px 0 16px 20px;border-left:3px solid #58a6ff;padding-left:16px}
+.dash-step{display:flex;align-items:center;gap:10px;padding:6px 0;font-size:.8rem}
+.dash-step-name{font-family:monospace;color:#e6edf3}
+.dash-step-dur{font-family:monospace;font-size:.75rem;color:#8b949e}
 
 /* ═══════════════════════════════════════════
    Footer
@@ -541,8 +567,21 @@ footer p{margin-top:8px}
       </div>
       <div class="dash-status"><span class="dash-dot"></span> Connected</div>
     </div>
-    <div class="dash-body">
-      <div class="dash-section-title">Nodes (3)</div>
+    <div class="dash-tabs">
+      <div class="dash-tab active" onclick="switchDashTab('cluster',this)">🖥️ Cluster</div>
+      <div class="dash-tab" onclick="switchDashTab('pipelines',this)">🔧 Pipelines</div>
+      <div class="dash-tab" onclick="switchDashTab('events',this)">📋 Events</div>
+    </div>
+
+    <!-- Cluster Tab -->
+    <div class="dash-view active" id="dash-cluster">
+      <div class="dash-stats">
+        <div class="dash-stat"><div class="dash-stat-num">3</div><div class="dash-stat-label">🖥️ Nodes</div></div>
+        <div class="dash-stat"><div class="dash-stat-num">4</div><div class="dash-stat-label">📦 Pods</div></div>
+        <div class="dash-stat"><div class="dash-stat-num">4</div><div class="dash-stat-label">🔌 Services</div></div>
+        <div class="dash-stat"><div class="dash-stat-num">4</div><div class="dash-stat-label">🧩 Addons</div></div>
+      </div>
+      <div class="dash-section-title">Nodes</div>
       <table class="dash-table">
         <thead><tr><th>Name</th><th>Role</th><th>Status</th><th>Address</th></tr></thead>
         <tbody>
@@ -551,16 +590,57 @@ footer p{margin-top:8px}
           <tr><td style="font-family:monospace">dev-worker-2</td><td><span class="dash-role worker">worker</span></td><td class="status-running">● Running</td><td style="color:#8b949e">10.244.0.4</td></tr>
         </tbody>
       </table>
-      <div class="dash-section-title">Pods (4)</div>
+      <div class="dash-section-title">Pods</div>
       <table class="dash-table">
         <thead><tr><th>Namespace</th><th>Name</th><th>Image</th><th>Status</th><th>Node</th></tr></thead>
         <tbody>
-          <tr><td style="color:#8b949e">default</td><td style="font-family:monospace">redis-0</td><td style="color:#8b949e;font-size:.6875rem">redis:7.2-alpine</td><td class="status-running">● Running</td><td style="color:#8b949e">dev-worker-1</td></tr>
-          <tr><td style="color:#8b949e">default</td><td style="font-family:monospace">postgres-0</td><td style="color:#8b949e;font-size:.6875rem">postgres:16-alpine</td><td class="status-running">● Running</td><td style="color:#8b949e">dev-worker-2</td></tr>
-          <tr><td style="color:#8b949e">default</td><td style="font-family:monospace">prometheus-0</td><td style="color:#8b949e;font-size:.6875rem">prom/prometheus:v2.51.0</td><td class="status-running">● Running</td><td style="color:#8b949e">dev-worker-1</td></tr>
-          <tr><td style="color:#8b949e">default</td><td style="font-family:monospace">grafana-0</td><td style="color:#8b949e;font-size:.6875rem">grafana/grafana:10.4.0</td><td class="status-running">● Running</td><td style="color:#8b949e">dev-worker-2</td></tr>
+          <tr><td style="color:#8b949e">default</td><td style="font-family:monospace">redis-0</td><td style="color:#8b949e;font-size:.75rem">redis:7.2-alpine</td><td class="status-running">● Running</td><td style="color:#8b949e">dev-worker-1</td></tr>
+          <tr><td style="color:#8b949e">default</td><td style="font-family:monospace">postgres-0</td><td style="color:#8b949e;font-size:.75rem">postgres:16-alpine</td><td class="status-running">● Running</td><td style="color:#8b949e">dev-worker-2</td></tr>
+          <tr><td style="color:#8b949e">default</td><td style="font-family:monospace">prometheus-0</td><td style="color:#8b949e;font-size:.75rem">prom/prometheus:v2.51.0</td><td class="status-running">● Running</td><td style="color:#8b949e">dev-worker-1</td></tr>
+          <tr><td style="color:#8b949e">default</td><td style="font-family:monospace">grafana-0</td><td style="color:#8b949e;font-size:.75rem">grafana/grafana:10.4.0</td><td class="status-running">● Running</td><td style="color:#8b949e">dev-worker-2</td></tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Pipelines Tab -->
+    <div class="dash-view" id="dash-pipelines">
+      <div class="dash-section-title">Pipeline Runs</div>
+      <table class="dash-table">
+        <thead><tr><th>Status</th><th>Started</th><th>Duration</th><th>Targets</th><th>File</th></tr></thead>
+        <tbody>
+          <tr><td><span style="color:#3fb950">✅ success</span></td><td style="font-family:monospace;color:#8b949e">14:32:05</td><td style="font-family:monospace;color:#8b949e">6.4s</td><td><span style="color:#3fb950">4/4 passed</span></td><td style="font-family:monospace;color:#8b949e">Torresmofile</td></tr>
+          <tr><td><span style="color:#f85149">❌ failed</span></td><td style="font-family:monospace;color:#8b949e">14:28:12</td><td style="font-family:monospace;color:#8b949e">3.1s</td><td><span style="color:#3fb950">2/3 passed</span>, <span style="color:#f85149">1 failed</span></td><td style="font-family:monospace;color:#8b949e">Torresmofile</td></tr>
+        </tbody>
+      </table>
+      <div class="dash-section-title">▶ Target Steps — Run 14:32:05</div>
+      <div class="dash-pipeline-steps">
+        <div class="dash-step"><span>✅</span><span class="dash-step-name">lint</span><span style="color:#3fb950;font-size:.75rem">success</span><span class="dash-step-dur">1.4s</span></div>
+        <div class="dash-step"><span>✅</span><span class="dash-step-name">test</span><span style="color:#3fb950;font-size:.75rem">success</span><span class="dash-step-dur">2.4s</span></div>
+        <div class="dash-step"><span>✅</span><span class="dash-step-name">build</span><span style="color:#3fb950;font-size:.75rem">success</span><span class="dash-step-dur">1.3s</span></div>
+        <div class="dash-step"><span>✅</span><span class="dash-step-name">deploy</span><span style="color:#3fb950;font-size:.75rem">success</span><span class="dash-step-dur">1.3s</span></div>
+      </div>
+      <div class="dash-section-title">Addons</div>
+      <table class="dash-table">
+        <thead><tr><th>Name</th><th>Namespace</th><th>Version</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td style="font-family:monospace">redis</td><td style="color:#8b949e">default</td><td><span class="dash-badge">7.2</span></td><td class="status-running">● Running</td></tr>
+          <tr><td style="font-family:monospace">postgres</td><td style="color:#8b949e">default</td><td><span class="dash-badge">16</span></td><td class="status-running">● Running</td></tr>
+          <tr><td style="font-family:monospace">prometheus</td><td style="color:#8b949e">default</td><td><span class="dash-badge">v2.51.0</span></td><td class="status-running">● Running</td></tr>
+          <tr><td style="font-family:monospace">grafana</td><td style="color:#8b949e">default</td><td><span class="dash-badge">10.4.0</span></td><td class="status-running">● Running</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Events Tab -->
+    <div class="dash-view" id="dash-events">
+      <div class="dash-section-title">Recent Events</div>
+      <div class="dash-event"><span class="dash-event-time">14:32:05</span><span class="dash-event-normal">Normal</span>&nbsp; Pod redis-0 &nbsp; <strong>Started</strong> &nbsp; Pod started</div>
+      <div class="dash-event"><span class="dash-event-time">14:32:03</span><span class="dash-event-normal">Normal</span>&nbsp; Pod redis-0 &nbsp; <strong>Scheduled</strong> &nbsp; Pod scheduled on node dev-worker-1</div>
+      <div class="dash-event"><span class="dash-event-time">14:32:01</span><span class="dash-event-normal">Normal</span>&nbsp; Service redis &nbsp; <strong>Applied</strong> &nbsp; Service "redis" applied with ClusterIP 10.244.0.11</div>
+      <div class="dash-event"><span class="dash-event-time">14:31:58</span><span class="dash-event-warning">Warning</span>&nbsp; Pod test-fail &nbsp; <strong>Failed</strong> &nbsp; command "exit 1" exited with code 1</div>
+      <div class="dash-event"><span class="dash-event-time">14:31:55</span><span class="dash-event-normal">Normal</span>&nbsp; Namespace staging &nbsp; <strong>Created</strong> &nbsp; Namespace "staging" created</div>
+      <div class="dash-event"><span class="dash-event-time">14:31:50</span><span class="dash-event-normal">Normal</span>&nbsp; Pod postgres-0 &nbsp; <strong>Started</strong> &nbsp; Pod started</div>
+      <div class="dash-event"><span class="dash-event-time">14:31:48</span><span class="dash-event-normal">Normal</span>&nbsp; Deployment web-app &nbsp; <strong>Created</strong> &nbsp; Deployment "web-app" created with 2/2 replicas ready</div>
     </div>
   </div>
 </div>
@@ -618,6 +698,14 @@ function copyCode(btn){
       btn.querySelector('svg').nextSibling.textContent=' Copy';
     },2000);
   });
+}
+
+// Dashboard tab switching
+function switchDashTab(tabId, tabEl) {
+  document.querySelectorAll('.dash-tab').forEach(function(t){ t.classList.remove('active') });
+  document.querySelectorAll('.dash-view').forEach(function(v){ v.classList.remove('active') });
+  tabEl.classList.add('active');
+  document.getElementById('dash-' + tabId).classList.add('active');
 }
 </script>
 </body>
