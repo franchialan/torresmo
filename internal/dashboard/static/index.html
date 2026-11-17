@@ -560,6 +560,94 @@
         }
 
         /* Live pipeline progress */
+        /* Pipeline expandable steps */
+        .pipeline-row {
+            cursor: pointer;
+            transition: background var(--transition);
+        }
+        .pipeline-row:hover {
+            background: rgba(88, 166, 255, 0.05);
+        }
+        .pipeline-row td:first-child::before {
+            content: '▶';
+            display: inline-block;
+            margin-right: 6px;
+            font-size: 10px;
+            transition: transform var(--transition);
+            color: var(--text-secondary);
+        }
+        .pipeline-row.expanded td:first-child::before {
+            transform: rotate(90deg);
+        }
+        .pipeline-steps-row {
+            display: none;
+        }
+        .pipeline-steps-row.visible {
+            display: table-row;
+        }
+        .pipeline-steps-row td {
+            padding: 0 !important;
+            border-top: none !important;
+        }
+        .pipeline-steps-container {
+            background: #0d1117;
+            border-left: 3px solid var(--blue);
+            margin: 0 12px 12px 24px;
+            border-radius: 0 var(--radius) var(--radius) 0;
+            overflow: hidden;
+        }
+        .step-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--card-border);
+            font-size: 13px;
+        }
+        .step-item:last-child {
+            border-bottom: none;
+        }
+        .step-icon {
+            font-size: 14px;
+            flex-shrink: 0;
+            width: 20px;
+            text-align: center;
+        }
+        .step-name {
+            font-family: var(--font-mono);
+            font-size: 13px;
+            color: var(--text-primary);
+            flex: 1;
+        }
+        .step-duration {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        .step-status {
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-weight: 500;
+        }
+        .step-status-success { background: rgba(63, 185, 80, 0.15); color: var(--green); }
+        .step-status-failed { background: rgba(248, 81, 73, 0.15); color: var(--red); }
+        .step-status-running { background: rgba(88, 166, 255, 0.15); color: var(--blue); }
+        .step-status-pending { background: rgba(139, 148, 158, 0.15); color: var(--text-secondary); }
+        .step-error {
+            font-size: 12px;
+            color: var(--red);
+            margin-left: 32px;
+            padding: 4px 0 8px;
+            font-family: var(--font-mono);
+            word-break: break-all;
+        }
+        .steps-loading {
+            padding: 12px 16px;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
         .live-pipeline {
             background: #1c2333;
             border: 1px solid var(--blue);
@@ -1109,12 +1197,16 @@
                 if (p.failedTargets > 0) {
                     targets += ', <span class="target-failed">' + p.failedTargets + ' failed</span>';
                 }
-                return '<tr>' +
+                var filterLabel = p.targetFilter ? ' → ' + escapeHtml(p.targetFilter) : '';
+                return '<tr class="pipeline-row" data-run-id="' + escapeHtml(p.id) + '" onclick="togglePipelineSteps(this)">' +
                     '<td><span class="' + statusCls + '">' + statusIcon + ' ' + escapeHtml(p.status) + '</span></td>' +
                     '<td class="mono">' + escapeHtml(p.startedAt) + '</td>' +
                     '<td class="mono">' + escapeHtml(p.duration) + '</td>' +
                     '<td class="target-summary">' + targets + '</td>' +
-                    '<td class="mono">' + escapeHtml(p.file) + '</td>' +
+                    '<td class="mono">' + escapeHtml(p.file) + filterLabel + '</td>' +
+                    '</tr>' +
+                    '<tr class="pipeline-steps-row" id="steps-' + escapeHtml(p.id) + '">' +
+                    '<td colspan="5"><div class="pipeline-steps-container"><div class="steps-loading">Click to load steps…</div></div></td>' +
                     '</tr>';
             }).join('');
 
@@ -1124,6 +1216,69 @@
             if (!hasRunning) {
                 liveSection.classList.add('hidden');
             }
+        }
+
+        var stepsCache = {};
+
+        function togglePipelineSteps(row) {
+            var runId = row.getAttribute('data-run-id');
+            var stepsRow = $('steps-' + runId);
+            var isExpanded = row.classList.contains('expanded');
+
+            // Collapse all others
+            document.querySelectorAll('.pipeline-row.expanded').forEach(function(r) {
+                r.classList.remove('expanded');
+            });
+            document.querySelectorAll('.pipeline-steps-row.visible').forEach(function(r) {
+                r.classList.remove('visible');
+            });
+
+            if (isExpanded) return;
+
+            row.classList.add('expanded');
+            stepsRow.classList.add('visible');
+
+            // Load steps
+            if (stepsCache[runId]) {
+                renderSteps(stepsRow, stepsCache[runId]);
+                return;
+            }
+
+            var container = stepsRow.querySelector('.pipeline-steps-container');
+            container.innerHTML = '<div class="steps-loading">Loading steps…</div>';
+
+            fetch('/api/pipelines/' + encodeURIComponent(runId) + '/targets')
+                .then(function(res) { return res.json(); })
+                .then(function(targets) {
+                    stepsCache[runId] = targets;
+                    renderSteps(stepsRow, targets);
+                })
+                .catch(function() {
+                    container.innerHTML = '<div class="steps-loading">Failed to load steps</div>';
+                });
+        }
+
+        function renderSteps(stepsRow, targets) {
+            var container = stepsRow.querySelector('.pipeline-steps-container');
+            if (!targets || targets.length === 0) {
+                container.innerHTML = '<div class="steps-loading">No steps recorded</div>';
+                return;
+            }
+
+            container.innerHTML = targets.map(function(t) {
+                var icon = t.status === 'success' ? '✅' :
+                           t.status === 'failed' ? '❌' :
+                           t.status === 'running' ? '🔄' : '⏳';
+                var statusCls = 'step-status step-status-' + (t.status || 'pending');
+                var errorHtml = t.error ? '<div class="step-error">⚠ ' + escapeHtml(t.error) + '</div>' : '';
+
+                return '<div class="step-item">' +
+                    '<span class="step-icon">' + icon + '</span>' +
+                    '<span class="step-name">' + escapeHtml(t.name) + '</span>' +
+                    '<span class="' + statusCls + '">' + escapeHtml(t.status) + '</span>' +
+                    '<span class="step-duration">' + escapeHtml(t.duration) + '</span>' +
+                    '</div>' + errorHtml;
+            }).join('');
         }
 
         // --- SSE for live pipeline updates ---
