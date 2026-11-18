@@ -393,6 +393,11 @@ footer p{margin-top:8px}
       <p>Native HCL pipelines + run GitHub Actions workflows locally via act. Dependency graphs and parallel execution.</p>
     </div>
     <div class="card feature-card">
+      <span class="icon">🔄</span>
+      <h3>Brownfield K8s Support</h3>
+      <p>Existing Kubernetes YAML manifests work without modification. Supports <code>apps/v1</code>, <code>v1</code>, and <code>batch/v1</code> apiVersions.</p>
+    </div>
+    <div class="card feature-card">
       <span class="icon">📸</span>
       <h3>Snapshots</h3>
       <p>Save and restore your entire cluster state. Perfect for risky migrations.</p>
@@ -505,6 +510,7 @@ footer p{margin-top:8px}
         <tr><td>Pre-built templates</td><td class="cross">✗</td><td class="cross">✗</td><td class="check">✓ 8 templates</td></tr>
         <tr><td>Hot-reload dev mode</td><td class="cross">✗</td><td class="cross">✗</td><td class="check">✓ <code>dev start</code></td></tr>
         <tr><td>Compose migration</td><td>N/A</td><td class="cross">✗</td><td class="check">✓ <code>compose import</code></td></tr>
+        <tr><td>K8s YAML compatibility</td><td class="cross">✗</td><td class="check">✓ Native</td><td class="check">✓ <code>torresmo apply -f</code></td></tr>
         <tr><td>Tools required</td><td>1 (Docker)</td><td>5+</td><td><strong>1</strong> (torresmo)</td></tr>
         <tr><td>Learning curve</td><td>Low</td><td>High</td><td><strong>Low</strong></td></tr>
       </tbody>

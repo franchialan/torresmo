@@ -64,6 +64,7 @@ torresmo create cluster -t go-api --name dev
 | Mock servers | ❌ | ❌ | ✅ `mock create` |
 | Benchmarking | ❌ | ❌ | ✅ `benchmark redis` |
 | Docker Compose migration | N/A | ❌ | ✅ `compose import` |
+| K8s YAML compatibility | ❌ N/A | ✅ Native | ✅ `torresmo apply -f` |
 | Team environment sharing | Commit compose file | Commit manifests | ✅ `share export` → `torresmo up` |
 | Community plugins | ❌ | Helm charts | ✅ YAML addon manifests |
 | Tools required | 1 (Docker) | 5+ | **1** (torresmo) |
@@ -212,6 +213,27 @@ torresmo up
 # → Cluster created, addons installed, manifests applied
 # → "Works on my machine" becomes "works on everyone's machine"
 ```
+
+### 🔄 Brownfield Support
+
+Already have Kubernetes manifests? They work as-is:
+
+```bash
+# Standard K8s YAML — works without modification
+torresmo apply -f k8s/deployment.yaml    # apiVersion: apps/v1 ✅
+torresmo apply -f k8s/service.yaml       # apiVersion: v1 ✅
+torresmo apply -f k8s/                   # entire directory ✅
+```
+
+Supported apiVersions:
+- `torresmo.io/v1` (native)
+- `apps/v1` (Deployments, StatefulSets)
+- `v1` (Pods, Services, Namespaces, ConfigMaps)
+- `batch/v1` (Jobs)
+
+No changes needed to your existing YAML files.
+
+> **Note:** Complex K8s features like RBAC, CRDs, and Operators are not supported.
 
 ### 🐳 Docker Compose Migration
 

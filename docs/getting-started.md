@@ -92,6 +92,17 @@ Apply it:
 torresmo apply -f my-app.yaml
 ```
 
+### Using Existing K8s Manifests
+
+If you already have Kubernetes YAML manifests, they work directly:
+
+```bash
+# No changes needed — standard K8s apiVersions are supported
+torresmo apply -f k8s/
+```
+
+Supported apiVersions include `apps/v1`, `v1`, and `batch/v1` in addition to `torresmo.io/v1`.
+
 ## Use AI Agent Mode
 
 If you have Ollama installed:

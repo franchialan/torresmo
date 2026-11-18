@@ -133,13 +133,31 @@ Apply a manifest file or directory to the cluster.
 torresmo apply -f <file|dir> [--cluster <name>]
 ```
 
+**Supported apiVersions:**
+
+| apiVersion | Kinds |
+|---|---|
+| `torresmo.io/v1` | Pod, Deployment, Service, Namespace |
+| `apps/v1` | Deployment |
+| `v1` | Pod, Service, Namespace |
+| `batch/v1` | Job |
+
+Existing Kubernetes YAML manifests work without modification.
+
 ```bash
 # Apply a single file
 torresmo apply -f deployment.yaml
 
 # Apply all manifests in a directory
 torresmo apply -f manifests/
+
+# Standard K8s manifests work as-is
+torresmo apply -f k8s/deployment.yaml    # apiVersion: apps/v1 ✅
+torresmo apply -f k8s/service.yaml       # apiVersion: v1 ✅
+torresmo apply -f k8s/                   # entire directory ✅
 ```
+
+> **Note:** Complex K8s features (RBAC, CRDs, Operators) are not supported.
 
 ### `torresmo logs`
 
