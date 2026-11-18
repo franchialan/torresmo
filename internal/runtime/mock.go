@@ -31,7 +31,7 @@ func NewMockRuntime() *MockRuntime {
 	return &MockRuntime{
 		containers: make(map[string]*MockContainer),
 		networks:   make(map[string]bool),
-		images:     map[string]bool{"alpine:3.19": true, "redis:7.2-alpine": true, "postgres:16-alpine": true},
+		images:     map[string]bool{"alpine:3.19": true, "torresmo/node:latest": true, "redis:7.2-alpine": true, "postgres:16-alpine": true},
 	}
 }
 

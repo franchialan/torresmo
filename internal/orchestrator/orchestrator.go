@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -122,6 +123,141 @@ func (o *Orchestrator) CreatePod(ctx context.Context, clusterName string, pod *v
 	if len(pod.Spec.Containers) == 0 {
 		return fmt.Errorf("pod %q must have at least one container", pod.Name)
 	}
+
+	// Check if node supports DinD
+	if o.isDinDNode(ctx, node.ContainerID) {
+		return o.createPodInNode(ctx, clusterName, pod, node)
+	}
+
+	// Fallback: create pod as sibling container (current behavior)
+	return o.createPodDirect(ctx, clusterName, pod, node)
+}
+
+// isDinDNode checks if a node container has Docker running inside it.
+func (o *Orchestrator) isDinDNode(ctx context.Context, containerID string) bool {
+	result, err := o.runtime.ExecInContainer(ctx, containerID, []string{"docker", "info"}, runtime.ExecOptions{})
+	if err != nil {
+		return false
+	}
+	return result != nil && result.ExitCode == 0
+}
+
+// createPodInNode creates a pod container INSIDE a DinD node via docker exec.
+func (o *Orchestrator) createPodInNode(ctx context.Context, clusterName string, pod *v1.Pod, node *storage.NodeRecord) error {
+	namespace := pod.Namespace
+	if namespace == "" {
+		namespace = "default"
+	}
+
+	container := pod.Spec.Containers[0]
+
+	// Build docker run command to execute inside the node
+	args := []string{"docker", "run", "-d", "--name", pod.Name}
+
+	// Add env vars
+	for _, e := range container.Env {
+		args = append(args, "-e", e.Name+"="+e.Value)
+	}
+
+	// Add port mappings
+	for _, p := range container.Ports {
+		proto := p.Protocol
+		if proto == "" {
+			proto = "tcp"
+		}
+		args = append(args, "-p", fmt.Sprintf("%d:%d/%s", p.ContainerPort, p.ContainerPort, proto))
+	}
+
+	// Add labels
+	args = append(args, "--label", "torresmo.dev/managed=true")
+	args = append(args, "--label", "torresmo.dev/cluster="+clusterName)
+	args = append(args, "--label", "torresmo.dev/namespace="+namespace)
+	args = append(args, "--label", "torresmo.dev/pod="+pod.Name)
+
+	// Image and command
+	args = append(args, container.Image)
+	args = append(args, container.Command...)
+
+	// Pull image inside the node first
+	pullResult, _ := o.runtime.ExecInContainer(ctx, node.ContainerID,
+		[]string{"docker", "pull", container.Image}, runtime.ExecOptions{})
+	if pullResult != nil && pullResult.ExitCode != 0 {
+		return fmt.Errorf("failed to pull image %q inside node: exit code %d", container.Image, pullResult.ExitCode)
+	}
+
+	// Run the container inside the node
+	result, err := o.runtime.ExecInContainer(ctx, node.ContainerID, args, runtime.ExecOptions{})
+	if err != nil {
+		return fmt.Errorf("creating pod %q inside node %q: %w", pod.Name, node.Name, err)
+	}
+	if result != nil && result.ExitCode != 0 {
+		return fmt.Errorf("creating pod %q inside node %q: exit code %d, output: %s", pod.Name, node.Name, result.ExitCode, result.Output)
+	}
+
+	// Get the container ID from the output (docker run -d prints the container ID)
+	innerContainerID := ""
+	if result != nil {
+		innerContainerID = strings.TrimSpace(result.Output)
+	}
+
+	// Get the pod IP from inside the node
+	podIP := ""
+	if innerContainerID != "" {
+		ipResult, _ := o.runtime.ExecInContainer(ctx, node.ContainerID,
+			[]string{"docker", "inspect", "--format", "{{.NetworkSettings.IPAddress}}", innerContainerID},
+			runtime.ExecOptions{})
+		if ipResult != nil {
+			podIP = strings.TrimSpace(ipResult.Output)
+		}
+	}
+
+	// Store DinD metadata in the labels
+	podLabels := make(map[string]string)
+	for k, v := range pod.Labels {
+		podLabels[k] = v
+	}
+	podLabels["torresmo.dev/dind"] = "true"
+	podLabels["torresmo.dev/dind-node"] = node.ContainerID
+
+	cmdJSON, _ := json.Marshal(container.Command)
+	labelsJSON, _ := json.Marshal(podLabels)
+	envJSON, _ := json.Marshal(container.Env)
+	portsJSON, _ := json.Marshal(container.Ports)
+
+	now := time.Now().Unix()
+	podRec := &storage.PodRecord{
+		Name:        pod.Name,
+		ClusterName: clusterName,
+		Namespace:   namespace,
+		ContainerID: innerContainerID,
+		Image:       container.Image,
+		Command:     string(cmdJSON),
+		Phase:       "Running",
+		Node:        node.Name,
+		PodIP:       podIP,
+		Restarts:    0,
+		Labels:      string(labelsJSON),
+		Env:         string(envJSON),
+		Ports:       string(portsJSON),
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+	if err := o.store.SavePod(ctx, podRec); err != nil {
+		return fmt.Errorf("saving pod record: %w", err)
+	}
+
+	o.emitEvent(ctx, clusterName, namespace, "Pod", pod.Name, "Normal", "Scheduled", fmt.Sprintf("Pod scheduled on node %s (DinD)", node.Name))
+	o.emitEvent(ctx, clusterName, namespace, "Pod", pod.Name, "Normal", "Started", "Pod started inside node")
+	return nil
+}
+
+// createPodDirect creates a pod as a sibling container on the host runtime.
+func (o *Orchestrator) createPodDirect(ctx context.Context, clusterName string, pod *v1.Pod, node *storage.NodeRecord) error {
+	namespace := pod.Namespace
+	if namespace == "" {
+		namespace = "default"
+	}
+
 	container := pod.Spec.Containers[0]
 
 	containerName := fmt.Sprintf("torresmo-%s-%s-%s", clusterName, namespace, pod.Name)
@@ -239,7 +375,16 @@ func (o *Orchestrator) DeletePod(ctx context.Context, clusterName, namespace, na
 		return fmt.Errorf("pod %q not found: %w", name, err)
 	}
 
-	if pod.ContainerID != "" {
+	// Check if this pod lives inside a DinD node
+	var podLabels map[string]string
+	_ = json.Unmarshal([]byte(pod.Labels), &podLabels)
+
+	if podLabels["torresmo.dev/dind"] == "true" {
+		nodeContainerID := podLabels["torresmo.dev/dind-node"]
+		if nodeContainerID != "" {
+			o.deletePodInNode(ctx, pod, nodeContainerID)
+		}
+	} else if pod.ContainerID != "" {
 		_ = o.runtime.StopContainer(ctx, pod.ContainerID, 10)
 		_ = o.runtime.RemoveContainer(ctx, pod.ContainerID, true)
 	}
@@ -250,6 +395,14 @@ func (o *Orchestrator) DeletePod(ctx context.Context, clusterName, namespace, na
 
 	o.emitEvent(ctx, clusterName, namespace, "Pod", name, "Normal", "Deleted", fmt.Sprintf("Pod %q deleted", name))
 	return nil
+}
+
+// deletePodInNode stops and removes a pod container inside a DinD node.
+func (o *Orchestrator) deletePodInNode(ctx context.Context, pod *storage.PodRecord, nodeContainerID string) {
+	_, _ = o.runtime.ExecInContainer(ctx, nodeContainerID,
+		[]string{"docker", "stop", pod.Name}, runtime.ExecOptions{})
+	_, _ = o.runtime.ExecInContainer(ctx, nodeContainerID,
+		[]string{"docker", "rm", "-f", pod.Name}, runtime.ExecOptions{})
 }
 
 // --- Deployment methods ---

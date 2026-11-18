@@ -3,6 +3,7 @@ package cluster
 import (
 	"context"
 	"fmt"
+	"os"
 	"regexp"
 	"strconv"
 	"time"
@@ -12,9 +13,11 @@ import (
 	"github.com/torresmo-dev/torresmo/internal/storage"
 )
 
-// nodeImage is the base image for cluster nodes.
-// TODO: Replace with a custom torresmo/node image that includes containerd.
-const nodeImage = "alpine:3.19"
+// nodeImage is the preferred base image for cluster nodes (DinD-capable).
+const nodeImage = "torresmo/node:latest"
+
+// fallbackNodeImage is used when the custom image is unavailable.
+const fallbackNodeImage = "alpine:3.19"
 
 var clusterNameRe = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
 
@@ -94,16 +97,8 @@ func (m *Manager) CreateCluster(ctx context.Context, name string, nodeCount int,
 		return fmt.Errorf("failed to query runtime: %w", err)
 	}
 
-	// Ensure the node image is available locally.
-	exists, err := m.runtime.ImageExists(ctx, nodeImage)
-	if err != nil {
-		return fmt.Errorf("failed to check node image: %w", err)
-	}
-	if !exists {
-		if err := m.runtime.PullImage(ctx, nodeImage); err != nil {
-			return fmt.Errorf("failed to pull node image %q: %w", nodeImage, err)
-		}
-	}
+	// Resolve the node image, falling back to alpine if the custom image is unavailable.
+	resolvedImage := m.resolveNodeImage(ctx)
 
 	clusterRecord := &storage.ClusterRecord{
 		Name:       name,
@@ -146,8 +141,9 @@ func (m *Manager) CreateCluster(ctx context.Context, name string, nodeCount int,
 
 	cpID, err := m.runtime.CreateContainer(ctx, &runtime.ContainerConfig{
 		Name:       cpName,
-		Image:      nodeImage,
-		Command:    []string{"sleep", "infinity"},
+		Image:      resolvedImage,
+		Command:    nodeCommand(resolvedImage),
+		Env:        nodeEnv("control-plane", name, cpName),
 		Labels:     cpLabels,
 		Networks:   []string{networkName},
 		Privileged: true,
@@ -189,8 +185,9 @@ func (m *Manager) CreateCluster(ctx context.Context, name string, nodeCount int,
 
 		wID, err := m.runtime.CreateContainer(ctx, &runtime.ContainerConfig{
 			Name:       workerName,
-			Image:      nodeImage,
-			Command:    []string{"sleep", "infinity"},
+			Image:      resolvedImage,
+			Command:    nodeCommand(resolvedImage),
+			Env:        nodeEnv("worker", name, workerName),
 			Labels:     workerLabels,
 			Networks:   []string{networkName},
 			Privileged: true,
@@ -335,4 +332,39 @@ func containerIP(detail *runtime.ContainerDetail, networkName string) string {
 		return ep.IPAddress
 	}
 	return detail.NetworkSettings.IPAddress
+}
+
+// resolveNodeImage checks if the torresmo/node image exists.
+// If not, falls back to alpine:3.19.
+func (m *Manager) resolveNodeImage(ctx context.Context) string {
+	exists, _ := m.runtime.ImageExists(ctx, nodeImage)
+	if exists {
+		return nodeImage
+	}
+	// Fallback to alpine for development/testing
+	fmt.Fprintf(os.Stderr, "  ⚠ torresmo/node image not found, using %s (run 'scripts/build-node-image.sh' to build)\n", fallbackNodeImage)
+
+	// Ensure the fallback image is available locally.
+	if fbExists, _ := m.runtime.ImageExists(ctx, fallbackNodeImage); !fbExists {
+		_ = m.runtime.PullImage(ctx, fallbackNodeImage)
+	}
+	return fallbackNodeImage
+}
+
+// nodeCommand returns the command for a node container.
+// The custom torresmo/node image has its own entrypoint; alpine needs sleep.
+func nodeCommand(image string) []string {
+	if image == nodeImage {
+		return nil
+	}
+	return []string{"sleep", "infinity"}
+}
+
+// nodeEnv returns the environment variables for a node container.
+func nodeEnv(role, clusterName, nodeName string) []string {
+	return []string{
+		"TORRESMO_ROLE=" + role,
+		"TORRESMO_CLUSTER=" + clusterName,
+		"TORRESMO_NODE=" + nodeName,
+	}
 }
