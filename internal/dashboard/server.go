@@ -734,7 +734,7 @@ func (s *Server) handlePodLogs(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
-	reader, err := s.runtime.ContainerLogs(ctx, pod.ContainerID, runtime.LogOptions{
+	reader, err := s.orch.LogsFromPod(ctx, pod, runtime.LogOptions{
 		Follow:     true,
 		Tail:       "100",
 		Timestamps: true,
@@ -814,7 +814,7 @@ func (s *Server) handlePodExec(w http.ResponseWriter, r *http.Request) {
 
 	var stdout bytes.Buffer
 	cmd := []string{"sh", "-c", req.Command}
-	result, err := s.runtime.ExecInContainer(ctx, pod.ContainerID, cmd, runtime.ExecOptions{
+	result, err := s.orch.ExecInPod(ctx, pod, cmd, runtime.ExecOptions{
 		Stdout: &stdout,
 	})
 
