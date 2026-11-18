@@ -198,7 +198,7 @@ func (o *Orchestrator) createPodInNode(ctx context.Context, clusterName string, 
 	// Get the container ID from the output (docker run -d prints the container ID)
 	innerContainerID := ""
 	if result != nil {
-		innerContainerID = strings.TrimSpace(result.Output)
+		innerContainerID = strings.TrimSpace(stripDockerHeader(result.Output))
 	}
 
 	// Get the pod IP from inside the node
@@ -208,7 +208,7 @@ func (o *Orchestrator) createPodInNode(ctx context.Context, clusterName string, 
 			[]string{"docker", "inspect", "--format", "{{.NetworkSettings.IPAddress}}", innerContainerID},
 			runtime.ExecOptions{})
 		if ipResult != nil {
-			podIP = strings.TrimSpace(ipResult.Output)
+			podIP = strings.TrimSpace(stripDockerHeader(ipResult.Output))
 		}
 	}
 
@@ -469,7 +469,7 @@ func (o *Orchestrator) LogsFromPod(ctx context.Context, pod *storage.PodRecord, 
 		}
 		output := ""
 		if result != nil {
-			output = result.Output
+			output = stripDockerHeader(result.Output)
 		}
 		return io.NopCloser(strings.NewReader(output)), nil
 	}
@@ -876,4 +876,12 @@ func mergeLabels(base, extra map[string]string) map[string]string {
 		merged[k] = v
 	}
 	return merged
+}
+
+// stripDockerHeader removes the 8-byte Docker multiplexed stream header if present.
+func stripDockerHeader(s string) string {
+	if len(s) > 8 && (s[0] == 1 || s[0] == 2) {
+		return s[8:]
+	}
+	return s
 }
