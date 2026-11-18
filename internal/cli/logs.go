@@ -45,11 +45,6 @@ var logsCmd = &cobra.Command{
 			return fmt.Errorf("pod %q has no container (phase: %s)", podName, pod.Phase)
 		}
 
-		rt, err := getRuntime()
-		if err != nil {
-			return err
-		}
-
 		opts := runtime.LogOptions{
 			Follow:     follow,
 			Tail:       tail,
@@ -60,7 +55,7 @@ var logsCmd = &cobra.Command{
 			ctx, stop := signal.NotifyContext(ctx, os.Interrupt)
 			defer stop()
 
-			reader, err := rt.ContainerLogs(ctx, pod.ContainerID, opts)
+			reader, err := o.LogsFromPod(ctx, pod, opts)
 			if err != nil {
 				return fmt.Errorf("failed to get logs: %w", err)
 			}
@@ -70,7 +65,7 @@ var logsCmd = &cobra.Command{
 			return nil
 		}
 
-		reader, err := rt.ContainerLogs(ctx, pod.ContainerID, opts)
+		reader, err := o.LogsFromPod(ctx, pod, opts)
 		if err != nil {
 			return fmt.Errorf("failed to get logs: %w", err)
 		}

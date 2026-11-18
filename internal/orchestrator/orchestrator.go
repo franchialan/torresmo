@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -403,6 +404,76 @@ func (o *Orchestrator) deletePodInNode(ctx context.Context, pod *storage.PodReco
 		[]string{"docker", "stop", pod.Name}, runtime.ExecOptions{})
 	_, _ = o.runtime.ExecInContainer(ctx, nodeContainerID,
 		[]string{"docker", "rm", "-f", pod.Name}, runtime.ExecOptions{})
+}
+
+// IsDinDPod returns true if the pod runs inside a DinD node, along with the node's container ID.
+func (o *Orchestrator) IsDinDPod(pod *storage.PodRecord) (bool, string) {
+	var podLabels map[string]string
+	_ = json.Unmarshal([]byte(pod.Labels), &podLabels)
+	if podLabels["torresmo.dev/dind"] == "true" {
+		return true, podLabels["torresmo.dev/dind-node"]
+	}
+	return false, ""
+}
+
+// ExecInPod executes a command in a pod, routing through the DinD node if needed.
+func (o *Orchestrator) ExecInPod(ctx context.Context, pod *storage.PodRecord, cmd []string, opts runtime.ExecOptions) (*runtime.ExecResult, error) {
+	isDinD, nodeContainerID := o.IsDinDPod(pod)
+	if isDinD && nodeContainerID != "" {
+		// Route through the node: docker exec <podName> <cmd...>
+		dockerCmd := append([]string{"docker", "exec"}, pod.Name)
+		dockerCmd = append(dockerCmd, cmd...)
+		return o.runtime.ExecInContainer(ctx, nodeContainerID, dockerCmd, opts)
+	}
+	return o.runtime.ExecInContainer(ctx, pod.ContainerID, cmd, opts)
+}
+
+// LogsFromPod retrieves logs from a pod, routing through the DinD node if needed.
+func (o *Orchestrator) LogsFromPod(ctx context.Context, pod *storage.PodRecord, logOpts runtime.LogOptions) (io.ReadCloser, error) {
+	isDinD, nodeContainerID := o.IsDinDPod(pod)
+	if isDinD && nodeContainerID != "" {
+		// Route through the node: docker logs <podName>
+		dockerCmd := []string{"docker", "logs"}
+		if logOpts.Follow {
+			dockerCmd = append(dockerCmd, "-f")
+		}
+		if logOpts.Tail != "" {
+			dockerCmd = append(dockerCmd, "--tail", logOpts.Tail)
+		}
+		if logOpts.Timestamps {
+			dockerCmd = append(dockerCmd, "--timestamps")
+		}
+		dockerCmd = append(dockerCmd, pod.Name)
+
+		if logOpts.Follow {
+			// For follow mode, stream via pipe
+			pr, pw := io.Pipe()
+			go func() {
+				_, err := o.runtime.ExecInContainer(ctx, nodeContainerID, dockerCmd, runtime.ExecOptions{
+					Stdout: pw,
+					Stderr: pw,
+				})
+				if err != nil {
+					_ = pw.CloseWithError(err)
+				} else {
+					_ = pw.Close()
+				}
+			}()
+			return pr, nil
+		}
+
+		// For non-follow, capture output and return as reader
+		result, err := o.runtime.ExecInContainer(ctx, nodeContainerID, dockerCmd, runtime.ExecOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("failed to get logs from DinD node: %w", err)
+		}
+		output := ""
+		if result != nil {
+			output = result.Output
+		}
+		return io.NopCloser(strings.NewReader(output)), nil
+	}
+	return o.runtime.ContainerLogs(ctx, pod.ContainerID, logOpts)
 }
 
 // --- Deployment methods ---

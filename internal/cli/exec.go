@@ -57,11 +57,7 @@ var execCmd = &cobra.Command{
 			return fmt.Errorf("pod %q has no container (phase: %s)", podName, pod.Phase)
 		}
 
-		rt, err := getRuntime()
-		if err != nil {
-			return err
-		}
-
+		// Use orchestrator to route exec through DinD node if needed
 		opts := runtime.ExecOptions{}
 		if interactive {
 			opts.Interactive = true
@@ -73,7 +69,8 @@ var execCmd = &cobra.Command{
 		opts.Stdout = os.Stdout
 		opts.Stderr = os.Stderr
 
-		result, err := rt.ExecInContainer(ctx, pod.ContainerID, command, opts)
+		// Use orchestrator to route exec through DinD node if needed
+		result, err := o.ExecInPod(ctx, pod, command, opts)
 		if err != nil {
 			return fmt.Errorf("exec failed: %w", err)
 		}
