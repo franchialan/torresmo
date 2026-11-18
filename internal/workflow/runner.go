@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/torresmo-dev/torresmo/internal/runtime"
+	"github.com/torresmo-dev/torresmo/internal/storage"
 
 	"gopkg.in/yaml.v3"
 )
@@ -47,14 +48,16 @@ type RunResult struct {
 // Runner executes GitHub Actions workflows locally.
 type Runner struct {
 	runtime runtime.ContainerRuntime
+	store   storage.Store // may be nil
 	workdir string
 	verbose bool
 }
 
 // NewRunner creates a workflow runner.
-func NewRunner(rt runtime.ContainerRuntime, workdir string) *Runner {
+func NewRunner(rt runtime.ContainerRuntime, store storage.Store, workdir string) *Runner {
 	return &Runner{
 		runtime: rt,
+		store:   store,
 		workdir: workdir,
 	}
 }
@@ -125,18 +128,29 @@ func parseWorkflowFile(path, fileName string) (*WorkflowFile, error) {
 func (r *Runner) Run(ctx context.Context, opts RunOptions) ([]RunResult, error) {
 	r.verbose = opts.Verbose
 
-	// Strategy: prefer locally installed act (faster), fallback to container
-	if _, err := exec.LookPath("act"); err == nil {
-		return r.runLocalAct(ctx, opts, time.Now())
-	}
-
-	// Fallback: run act inside a Docker container
-	actImage := "ghcr.io/catthehacker/ubuntu:act-latest"
-
 	event := opts.Event
 	if event == "" {
 		event = "push"
 	}
+
+	runID := fmt.Sprintf("wf-%d", time.Now().UnixNano())
+	startUnix := time.Now().Unix()
+	if r.store != nil {
+		_ = r.store.SaveWorkflowRun(ctx, &storage.WorkflowRunRecord{
+			ID: runID, WorkflowFile: opts.WorkflowFile, Job: opts.Job,
+			Event: event, Status: "running", StartedAt: startUnix,
+		})
+	}
+
+	// Strategy: prefer locally installed act (faster), fallback to container
+	if _, err := exec.LookPath("act"); err == nil {
+		results, runErr := r.runLocalAct(ctx, opts, time.Now())
+		r.saveWorkflowResult(ctx, runID, opts, event, startUnix, results, runErr)
+		return results, runErr
+	}
+
+	// Fallback: run act inside a Docker container
+	actImage := "ghcr.io/catthehacker/ubuntu:act-latest"
 
 	actCmd := []string{"act", event}
 
@@ -218,6 +232,7 @@ func (r *Runner) Run(ctx context.Context, opts RunOptions) ([]RunResult, error) 
 		Duration: duration,
 	}
 
+	r.saveWorkflowResult(ctx, runID, opts, event, startUnix, []RunResult{result}, nil)
 	return []RunResult{result}, nil
 }
 
@@ -276,4 +291,31 @@ func (r *Runner) runLocalAct(ctx context.Context, opts RunOptions, start time.Ti
 		Duration: duration,
 		Error:    runErr,
 	}}, nil
+}
+
+func (r *Runner) saveWorkflowResult(ctx context.Context, runID string, opts RunOptions, event string, startUnix int64, results []RunResult, runErr error) {
+	if r.store == nil {
+		return
+	}
+	status := "success"
+	var errMsg string
+	var duration time.Duration
+	if runErr != nil {
+		status = "failed"
+		errMsg = runErr.Error()
+	}
+	if len(results) > 0 {
+		res := results[0]
+		status = res.Status
+		duration = res.Duration
+		if res.Error != nil {
+			errMsg = res.Error.Error()
+		}
+	}
+	_ = r.store.SaveWorkflowRun(ctx, &storage.WorkflowRunRecord{
+		ID: runID, WorkflowFile: opts.WorkflowFile, Job: opts.Job,
+		Event: event, Status: status, StartedAt: startUnix,
+		FinishedAt: time.Now().Unix(), DurationMs: duration.Milliseconds(),
+		Error: errMsg,
+	})
 }

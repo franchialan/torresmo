@@ -1111,6 +1111,28 @@
             </div>
         </div>
 
+        <div class="section" id="workflows-section">
+            <div class="section-header">
+                <div class="section-title">⚡ Workflows <span class="section-count" id="workflows-count">0</span></div>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th>Workflow</th>
+                            <th>Job</th>
+                            <th>Event</th>
+                            <th>Duration</th>
+                        </tr>
+                    </thead>
+                    <tbody id="workflows-body">
+                        <tr><td colspan="5" class="empty-state">No workflow runs</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <div class="section" id="events-section">
             <div class="section-header">
                 <div class="section-title">📋 Recent Events <span class="section-count" id="events-count">0</span></div>
@@ -1351,6 +1373,9 @@
             // Pipelines
             renderPipelines(data.pipelines || []);
 
+            // Workflows
+            renderWorkflows(data.workflows || []);
+
             // Timestamp
             var ts = data.timestamp;
             var timeStr = '—';
@@ -1416,6 +1441,32 @@
                     }
                 }
             }
+        }
+
+        function renderWorkflows(workflows) {
+            var tbody = $('workflows-body');
+            var count = $('workflows-count');
+            count.textContent = workflows ? workflows.length : 0;
+
+            if (!workflows || workflows.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No workflow runs</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = workflows.map(function(w) {
+                var statusIcon = w.status === 'success' ? '✅' :
+                                w.status === 'failed' ? '❌' :
+                                w.status === 'running' ? '🔄' : '⏳';
+                var statusCls = 'pipeline-status pipeline-status-' + (w.status || 'pending');
+                var errorHtml = w.error ? '<br><small style="color:var(--red)">' + escapeHtml(w.error) + '</small>' : '';
+                return '<tr>' +
+                    '<td><span class="' + statusCls + '">' + statusIcon + ' ' + escapeHtml(w.status) + '</span></td>' +
+                    '<td class="mono">' + escapeHtml(w.workflowFile || 'all') + '</td>' +
+                    '<td class="mono">' + escapeHtml(w.job || 'all') + '</td>' +
+                    '<td>' + escapeHtml(w.event) + '</td>' +
+                    '<td class="mono">' + escapeHtml(w.duration) + errorHtml + '</td>' +
+                    '</tr>';
+            }).join('');
         }
 
         var stepsCache = {};

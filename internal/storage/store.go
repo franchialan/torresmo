@@ -58,6 +58,10 @@ type Store interface {
 	SavePipelineTarget(ctx context.Context, target *PipelineTargetRecord) error
 	ListPipelineTargets(ctx context.Context, runID string) ([]PipelineTargetRecord, error)
 
+	// Workflow operations
+	SaveWorkflowRun(ctx context.Context, run *WorkflowRunRecord) error
+	ListWorkflowRuns(ctx context.Context, limit int) ([]WorkflowRunRecord, error)
+
 	Close() error
 }
 
@@ -170,6 +174,18 @@ type PipelineRunRecord struct {
 	FailedTargets int
 	File          string // Torresmofile path
 	TargetFilter  string // specific target requested, or empty for all
+}
+
+type WorkflowRunRecord struct {
+	ID           string
+	WorkflowFile string
+	Job          string
+	Event        string
+	Status       string // "running", "success", "failed"
+	StartedAt    int64
+	FinishedAt   int64
+	DurationMs   int64
+	Error        string
 }
 
 type PipelineTargetRecord struct {

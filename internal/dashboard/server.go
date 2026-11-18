@@ -82,6 +82,7 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.HandleFunc("/api/pipelines/live", s.handlePipelineLive)
 	mux.HandleFunc("/api/pipelines", s.handlePipelines)
 	mux.HandleFunc("/api/pipelines/", s.handlePipelineTargets)
+	mux.HandleFunc("/api/workflows", s.handleWorkflows)
 	mux.HandleFunc("/api/overview", s.handleOverview)
 
 	// Static files (embedded)
@@ -135,6 +136,7 @@ type OverviewResponse struct {
 	Events     []EventInfo       `json:"events"`
 	Addons     []AddonInfo       `json:"addons"`
 	Pipelines  []PipelineRunInfo `json:"pipelines"`
+	Workflows  []WorkflowRunInfo `json:"workflows"`
 	Timestamp  string            `json:"timestamp"`
 }
 
@@ -205,6 +207,17 @@ type PipelineRunInfo struct {
 	FailedTargets int    `json:"failedTargets"`
 	File          string `json:"file"`
 	TargetFilter  string `json:"targetFilter,omitempty"`
+}
+
+type WorkflowRunInfo struct {
+	ID           string `json:"id"`
+	WorkflowFile string `json:"workflowFile"`
+	Job          string `json:"job"`
+	Event        string `json:"event"`
+	Status       string `json:"status"`
+	StartedAt    string `json:"startedAt"`
+	Duration     string `json:"duration"`
+	Error        string `json:"error,omitempty"`
 }
 
 // --- Conversion helpers ---
@@ -535,6 +548,15 @@ func (s *Server) handleOverview(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Recent workflow runs
+	workflowRuns, err := s.store.ListWorkflowRuns(ctx, 5)
+	if err == nil {
+		resp.Workflows = make([]WorkflowRunInfo, len(workflowRuns))
+		for i, run := range workflowRuns {
+			resp.Workflows[i] = workflowRunInfoFromRecord(run)
+		}
+	}
+
 	s.writeJSON(w, resp)
 }
 
@@ -549,6 +571,40 @@ func (s *Server) handlePipelines(w http.ResponseWriter, r *http.Request) {
 	result := make([]PipelineRunInfo, len(runs))
 	for i, run := range runs {
 		result[i] = pipelineRunInfoFromRecord(run)
+	}
+
+	s.writeJSON(w, result)
+}
+
+func workflowRunInfoFromRecord(run storage.WorkflowRunRecord) WorkflowRunInfo {
+	started := time.Unix(run.StartedAt, 0)
+	dur := fmt.Sprintf("%dms", run.DurationMs)
+	if run.DurationMs >= 1000 {
+		dur = fmt.Sprintf("%.1fs", float64(run.DurationMs)/1000)
+	}
+	return WorkflowRunInfo{
+		ID:           run.ID,
+		WorkflowFile: run.WorkflowFile,
+		Job:          run.Job,
+		Event:        run.Event,
+		Status:       run.Status,
+		StartedAt:    started.Format("15:04:05"),
+		Duration:     dur,
+		Error:        run.Error,
+	}
+}
+
+func (s *Server) handleWorkflows(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	runs, err := s.store.ListWorkflowRuns(ctx, 20)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	result := make([]WorkflowRunInfo, len(runs))
+	for i, run := range runs {
+		result[i] = workflowRunInfoFromRecord(run)
 	}
 
 	s.writeJSON(w, result)

@@ -237,6 +237,23 @@ func (s *Store) migrate() error {
 		return fmt.Errorf("creating pipeline_targets table: %w", err)
 	}
 
+	const workflowRunsTable = `
+		CREATE TABLE IF NOT EXISTS workflow_runs (
+			id TEXT PRIMARY KEY,
+			workflow_file TEXT NOT NULL DEFAULT '',
+			job TEXT NOT NULL DEFAULT '',
+			event TEXT NOT NULL DEFAULT 'push',
+			status TEXT NOT NULL DEFAULT 'running',
+			started_at INTEGER NOT NULL,
+			finished_at INTEGER NOT NULL DEFAULT 0,
+			duration_ms INTEGER NOT NULL DEFAULT 0,
+			error TEXT NOT NULL DEFAULT ''
+		);`
+
+	if _, err := s.db.Exec(workflowRunsTable); err != nil {
+		return fmt.Errorf("creating workflow_runs table: %w", err)
+	}
+
 	return nil
 }
 
@@ -1226,6 +1243,71 @@ func (s *Store) ListPipelineTargets(ctx context.Context, runID string) ([]storag
 		return nil, fmt.Errorf("iterating pipeline target rows: %w", err)
 	}
 	return targets, nil
+}
+
+// --- Workflow operations ---
+
+func (s *Store) SaveWorkflowRun(ctx context.Context, run *storage.WorkflowRunRecord) error {
+	const q = `
+		INSERT INTO workflow_runs
+			(id, workflow_file, job, event, status, started_at, finished_at, duration_ms, error)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			status = excluded.status,
+			finished_at = excluded.finished_at,
+			duration_ms = excluded.duration_ms,
+			error = excluded.error`
+
+	_, err := s.db.ExecContext(ctx, q,
+		run.ID,
+		run.WorkflowFile,
+		run.Job,
+		run.Event,
+		run.Status,
+		run.StartedAt,
+		run.FinishedAt,
+		run.DurationMs,
+		run.Error,
+	)
+	if err != nil {
+		return fmt.Errorf("saving workflow run %q: %w", run.ID, err)
+	}
+	return nil
+}
+
+func (s *Store) ListWorkflowRuns(ctx context.Context, limit int) ([]storage.WorkflowRunRecord, error) {
+	const q = `
+		SELECT id, workflow_file, job, event, status, started_at, finished_at, duration_ms, error
+		FROM workflow_runs ORDER BY started_at DESC LIMIT ?`
+
+	rows, err := s.db.QueryContext(ctx, q, limit)
+	if err != nil {
+		return nil, fmt.Errorf("listing workflow runs: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var runs []storage.WorkflowRunRecord
+	for rows.Next() {
+		var r storage.WorkflowRunRecord
+		if err := rows.Scan(
+			&r.ID,
+			&r.WorkflowFile,
+			&r.Job,
+			&r.Event,
+			&r.Status,
+			&r.StartedAt,
+			&r.FinishedAt,
+			&r.DurationMs,
+			&r.Error,
+		); err != nil {
+			return nil, fmt.Errorf("scanning workflow run row: %w", err)
+		}
+		runs = append(runs, r)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating workflow run rows: %w", err)
+	}
+	return runs, nil
 }
 
 func (s *Store) Close() error {

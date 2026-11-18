@@ -91,7 +91,8 @@ Install act for faster execution: brew install act`,
 			return err
 		}
 
-		runner := workflow.NewRunner(rt, workdir)
+		_, store, _ := initDeps()
+		runner := workflow.NewRunner(rt, store, workdir)
 
 		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 		defer cancel()
