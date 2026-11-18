@@ -344,6 +344,46 @@ torresmo test [flags]
 
 ---
 
+## Workflows
+
+### `torresmo workflow list`
+
+List available GitHub Actions workflows in `.github/workflows/`.
+
+```bash
+torresmo workflow list
+```
+
+### `torresmo workflow run`
+
+Run GitHub Actions workflows locally using act.
+
+```bash
+torresmo workflow run [workflow-file] [flags]
+```
+
+**Flags:**
+
+| Flag | Description |
+|---|---|
+| `-f, --file` | Specific workflow file (e.g., `ci.yml`) |
+| `-j, --job` | Specific job to run |
+| `--event` | Trigger event (default: `push`) |
+| `-v, --verbose` | Verbose output |
+| `--dry-run` | Show steps without executing |
+| `--secret` | Pass secrets `KEY=VALUE` (repeatable) |
+| `--env` | Pass env vars `KEY=VALUE` (repeatable) |
+
+**Examples:**
+
+```bash
+torresmo workflow run --file ci.yml --job test
+torresmo workflow run --file ci.yml --dry-run
+torresmo workflow run --secret GITHUB_TOKEN=ghp_xxx
+```
+
+---
+
 ## Dev Experience
 
 ### `torresmo dev start`

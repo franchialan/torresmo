@@ -263,6 +263,7 @@ Pods (4)
 | Port forwarding | `torresmo proxy redis-0 6379:6379` |
 | Expose to internet | `torresmo tunnel my-api --port 8080 --provider cloudflared` |
 | System diagnostics | `torresmo doctor` |
+| Run GitHub Actions locally | `torresmo workflow run --file ci.yml --job test` |
 | Resource cleanup | `torresmo cleanup --all` |
 | Community addons | `torresmo addon install --from-manifest custom-addon.yaml` |
 
@@ -340,6 +341,7 @@ torresmo delete cluster dev
 - [CLI Reference](docs/cli-reference.md)
 - [Dashboard](docs/dashboard.md)
 - [Torresmofile Guide](docs/torresmofile.md)
+- [Workflows](docs/workflows.md)
 - [Addons](docs/addons.md)
 
 ## Contributing

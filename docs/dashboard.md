@@ -208,6 +208,27 @@ This lets you monitor `torresmo pipeline run` from the browser without switching
 
 ---
 
+## Workflow Runs
+
+The ⚡ Workflows section shows the history of GitHub Actions workflow executions:
+
+- **Status**: ✅ success, ❌ failed, 🔄 running
+- **Workflow**: The workflow file name
+- **Job**: The specific job that was run
+- **Event**: The trigger event (push, pull_request, etc.)
+- **Duration**: How long the workflow took
+
+### Viewing Workflow Logs
+
+Click on any workflow run to expand and view the full execution logs inline. The log viewer features:
+- Terminal-style dark display
+- Syntax highlighting (green for success, red for errors, blue for steps)
+- Scrollable output for long logs
+
+Logs are captured from the act execution output and persisted in the database.
+
+---
+
 ## API Reference
 
 The web dashboard is backed by a REST API. All endpoints return JSON unless noted.

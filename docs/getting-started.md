@@ -113,6 +113,26 @@ torresmo pipeline run
 torresmo pipeline run --target test
 ```
 
+## Run GitHub Actions Locally
+
+If your project has GitHub Actions workflows, you can run them locally:
+
+```bash
+# Install act (optional, for better performance)
+brew install act
+
+# List workflows
+torresmo workflow list
+
+# Run a workflow
+torresmo workflow run --file ci.yml
+
+# With GitHub token (needed for some actions)
+torresmo workflow run --file ci.yml --secret GITHUB_TOKEN=ghp_your_token
+```
+
+See [Workflow Guide](workflows.md) for more details.
+
 ## One-Command Environment
 
 Create a `torresmo-env.yaml` in your project and share it with your team:
@@ -156,5 +176,6 @@ torresmo cleanup --all
 - [Dashboard](dashboard.md) — TUI and web dashboard with live logs
 - [Torresmofile Guide](torresmofile.md) — Pipeline configuration
 - [Addons](addons.md) — Available addons and configuration
+- [Workflows](workflows.md) — Run GitHub Actions locally
 - [Dev Mode](dev-mode.md) — Hot reload for development
 - [Templates](templates.md) — Pre-built environment templates

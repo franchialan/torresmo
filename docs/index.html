@@ -389,8 +389,8 @@ footer p{margin-top:8px}
     </div>
     <div class="card feature-card">
       <span class="icon">🔧</span>
-      <h3>Local Pipelines</h3>
-      <p>CI/CD in containers, same as production. Dependency graphs and parallel execution.</p>
+      <h3>Local Pipelines & Workflows</h3>
+      <p>Native HCL pipelines + run GitHub Actions workflows locally via act. Dependency graphs and parallel execution.</p>
     </div>
     <div class="card feature-card">
       <span class="icon">📸</span>
@@ -498,6 +498,7 @@ footer p{margin-top:8px}
         <tr><td>Multi-node clusters</td><td class="cross">✗</td><td class="check">✓</td><td class="check">✓</td></tr>
         <tr><td>Built-in addons</td><td class="cross">✗ Manual</td><td class="warn">⚠ Helm</td><td class="check">✓ <code>addon install</code></td></tr>
         <tr><td>Local CI/CD pipelines</td><td class="cross">✗</td><td class="cross">✗</td><td class="check">✓ <code>pipeline run</code></td></tr>
+        <tr><td>Run GitHub Actions locally</td><td class="cross">✗</td><td class="cross">✗</td><td class="check">✓ <code>workflow run</code></td></tr>
         <tr><td>AI-powered CLI</td><td class="cross">✗</td><td class="cross">✗</td><td class="check">✓ Natural language</td></tr>
         <tr><td>Dashboard</td><td class="cross">✗</td><td class="cross">✗</td><td class="check">✓ TUI &amp; Web</td></tr>
         <tr><td>Snapshots</td><td class="cross">✗</td><td class="cross">✗</td><td class="check">✓ <code>snapshot create</code></td></tr>
@@ -570,6 +571,7 @@ footer p{margin-top:8px}
     <div class="dash-tabs">
       <div class="dash-tab active" onclick="switchDashTab('cluster',this)">🖥️ Cluster</div>
       <div class="dash-tab" onclick="switchDashTab('pipelines',this)">🔧 Pipelines</div>
+      <div class="dash-tab" onclick="switchDashTab('workflows',this)">⚡ Workflows</div>
       <div class="dash-tab" onclick="switchDashTab('events',this)">📋 Events</div>
     </div>
 
@@ -629,6 +631,29 @@ footer p{margin-top:8px}
           <tr><td style="font-family:monospace">grafana</td><td style="color:#8b949e">default</td><td><span class="dash-badge">10.4.0</span></td><td class="status-running">● Running</td></tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Workflows Tab -->
+    <div class="dash-view" id="dash-workflows">
+      <div class="dash-section-title">Workflow Runs</div>
+      <table class="dash-table">
+        <thead><tr><th>Status</th><th>Workflow</th><th>Job</th><th>Event</th><th>Duration</th></tr></thead>
+        <tbody>
+          <tr><td><span style="color:#3fb950">✅ success</span></td><td style="font-family:monospace;color:#e6edf3">ci.yml</td><td style="font-family:monospace;color:#8b949e">test</td><td style="color:#8b949e">push</td><td style="font-family:monospace;color:#8b949e">42.3s</td></tr>
+          <tr><td><span style="color:#3fb950">✅ success</span></td><td style="font-family:monospace;color:#e6edf3">ci.yml</td><td style="font-family:monospace;color:#8b949e">build</td><td style="color:#8b949e">push</td><td style="font-family:monospace;color:#8b949e">1m18s</td></tr>
+          <tr><td><span style="color:#f85149">❌ failed</span></td><td style="font-family:monospace;color:#e6edf3">release.yml</td><td style="font-family:monospace;color:#8b949e">release</td><td style="color:#8b949e">push</td><td style="font-family:monospace;color:#8b949e">12.1s</td></tr>
+        </tbody>
+      </table>
+      <div class="dash-section-title">▶ Logs — ci.yml / test</div>
+      <div style="background:#010409;padding:12px;font-family:'SF Mono',Consolas,monospace;font-size:.6875rem;line-height:1.7;color:#c9d1d9;border-radius:8px;max-height:160px;overflow:hidden">
+        <div style="color:#58a6ff">[CI/test] 🚀 Start image=catthehacker/ubuntu:act-latest</div>
+        <div style="color:#8b949e">[CI/test]   🐳 docker pull catthehacker/ubuntu:act-latest</div>
+        <div style="color:#3fb950">[CI/test] ✅ Main actions/checkout@v4</div>
+        <div style="color:#3fb950">[CI/test] ✅ Main actions/setup-go@v5</div>
+        <div style="color:#e6edf3">[CI/test]   go test -race ./...</div>
+        <div style="color:#3fb950">[CI/test]   ok  github.com/myorg/myapp/...  5.2s</div>
+        <div style="color:#3fb950">[CI/test] ✅ Complete</div>
+      </div>
     </div>
 
     <!-- Events Tab -->
@@ -737,6 +762,7 @@ footer p{margin-top:8px}
     <a href="https://github.com/franchialan/torresmo/blob/main/docs/cli-reference.md" target="_blank" rel="noopener">CLI Reference</a>
     <a href="https://github.com/franchialan/torresmo/blob/main/docs/dashboard.md" target="_blank" rel="noopener">Dashboard</a>
     <a href="https://github.com/franchialan/torresmo/blob/main/docs/addons.md" target="_blank" rel="noopener">Addons</a>
+    <a href="https://github.com/franchialan/torresmo/blob/main/docs/workflows.md" target="_blank" rel="noopener">Workflows</a>
     <a href="https://github.com/franchialan/torresmo/blob/main/docs/torresmofile.md" target="_blank" rel="noopener">Torresmofile Guide</a>
   </div>
   <p>Made with <img src="assets/logo.png" width="18" alt="Torresmo" style="vertical-align:middle"> by the Torresmo community</p>
