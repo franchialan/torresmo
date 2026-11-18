@@ -762,8 +762,8 @@ func (o *Orchestrator) ApplyManifest(ctx context.Context, clusterName string, da
 		return fmt.Errorf("parsing manifest metadata: %w", err)
 	}
 
-	if meta.APIVersion != "torresmo.io/v1" {
-		return fmt.Errorf("unsupported apiVersion %q, expected torresmo.io/v1", meta.APIVersion)
+	if !isSupportedAPIVersion(meta.APIVersion) {
+		return fmt.Errorf("unsupported apiVersion %q; supported: torresmo.io/v1, apps/v1, v1", meta.APIVersion)
 	}
 
 	switch meta.Kind {
@@ -884,4 +884,14 @@ func stripDockerHeader(s string) string {
 		return s[8:]
 	}
 	return s
+}
+
+// isSupportedAPIVersion checks if the apiVersion is one we can handle.
+// Accepts both Torresmo-native and standard Kubernetes apiVersions.
+func isSupportedAPIVersion(apiVersion string) bool {
+	switch apiVersion {
+	case "torresmo.io/v1", "apps/v1", "v1", "batch/v1":
+		return true
+	}
+	return false
 }
