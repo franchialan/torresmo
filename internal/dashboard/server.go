@@ -83,6 +83,7 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.HandleFunc("/api/pipelines", s.handlePipelines)
 	mux.HandleFunc("/api/pipelines/", s.handlePipelineTargets)
 	mux.HandleFunc("/api/workflows", s.handleWorkflows)
+	mux.HandleFunc("/api/workflows/", s.handleWorkflowLogs)
 	mux.HandleFunc("/api/overview", s.handleOverview)
 
 	// Static files (embedded)
@@ -608,6 +609,28 @@ func (s *Server) handleWorkflows(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.writeJSON(w, result)
+}
+
+func (s *Server) handleWorkflowLogs(w http.ResponseWriter, r *http.Request) {
+	parts := strings.Split(r.URL.Path, "/")
+	// /api/workflows/{id}/logs → ["", "api", "workflows", "{id}", "logs"]
+	if len(parts) < 5 || parts[4] != "logs" {
+		s.writeError(w, http.StatusBadRequest, "expected /api/workflows/{id}/logs")
+		return
+	}
+	runID := parts[3]
+
+	ctx := context.Background()
+	run, err := s.store.GetWorkflowRun(ctx, runID)
+	if err != nil {
+		s.writeError(w, http.StatusNotFound, "workflow run not found")
+		return
+	}
+
+	s.writeJSON(w, map[string]string{
+		"id":     run.ID,
+		"output": run.Output,
+	})
 }
 
 func (s *Server) handlePipelineTargets(w http.ResponseWriter, r *http.Request) {

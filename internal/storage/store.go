@@ -60,6 +60,7 @@ type Store interface {
 
 	// Workflow operations
 	SaveWorkflowRun(ctx context.Context, run *WorkflowRunRecord) error
+	GetWorkflowRun(ctx context.Context, id string) (*WorkflowRunRecord, error)
 	ListWorkflowRuns(ctx context.Context, limit int) ([]WorkflowRunRecord, error)
 
 	Close() error
@@ -186,6 +187,7 @@ type WorkflowRunRecord struct {
 	FinishedAt   int64
 	DurationMs   int64
 	Error        string
+	Output       string // captured stdout/stderr logs
 }
 
 type PipelineTargetRecord struct {

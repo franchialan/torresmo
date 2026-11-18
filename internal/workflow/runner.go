@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -43,6 +44,7 @@ type RunResult struct {
 	Status   string // "success", "failed"
 	Duration time.Duration
 	Error    error
+	Output   string
 }
 
 // Runner executes GitHub Actions workflows locally.
@@ -271,8 +273,11 @@ func (r *Runner) runLocalAct(ctx context.Context, opts RunOptions, start time.Ti
 
 	cmd := exec.CommandContext(ctx, actPath, args...)
 	cmd.Dir = r.workdir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+
+	// Capture output while still streaming to stdout/stderr
+	var outputBuf bytes.Buffer
+	cmd.Stdout = io.MultiWriter(os.Stdout, &outputBuf)
+	cmd.Stderr = io.MultiWriter(os.Stderr, &outputBuf)
 
 	err = cmd.Run()
 	duration := time.Since(start)
@@ -284,12 +289,19 @@ func (r *Runner) runLocalAct(ctx context.Context, opts RunOptions, start time.Ti
 		runErr = err
 	}
 
+	// Truncate output to last 10KB
+	output := outputBuf.String()
+	if len(output) > 10240 {
+		output = "...(truncated)\n" + output[len(output)-10240:]
+	}
+
 	return []RunResult{{
 		Workflow: opts.WorkflowFile,
 		Job:      opts.Job,
 		Status:   status,
 		Duration: duration,
 		Error:    runErr,
+		Output:   output,
 	}}, nil
 }
 
@@ -300,6 +312,7 @@ func (r *Runner) saveWorkflowResult(ctx context.Context, runID string, opts RunO
 	status := "success"
 	var errMsg string
 	var duration time.Duration
+	var output string
 	if runErr != nil {
 		status = "failed"
 		errMsg = runErr.Error()
@@ -311,11 +324,12 @@ func (r *Runner) saveWorkflowResult(ctx context.Context, runID string, opts RunO
 		if res.Error != nil {
 			errMsg = res.Error.Error()
 		}
+		output = res.Output
 	}
 	_ = r.store.SaveWorkflowRun(ctx, &storage.WorkflowRunRecord{
 		ID: runID, WorkflowFile: opts.WorkflowFile, Job: opts.Job,
 		Event: event, Status: status, StartedAt: startUnix,
 		FinishedAt: time.Now().Unix(), DurationMs: duration.Milliseconds(),
-		Error: errMsg,
+		Error: errMsg, Output: output,
 	})
 }

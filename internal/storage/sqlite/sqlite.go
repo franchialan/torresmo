@@ -247,7 +247,8 @@ func (s *Store) migrate() error {
 			started_at INTEGER NOT NULL,
 			finished_at INTEGER NOT NULL DEFAULT 0,
 			duration_ms INTEGER NOT NULL DEFAULT 0,
-			error TEXT NOT NULL DEFAULT ''
+			error TEXT NOT NULL DEFAULT '',
+			output TEXT NOT NULL DEFAULT ''
 		);`
 
 	if _, err := s.db.Exec(workflowRunsTable); err != nil {
@@ -1250,13 +1251,14 @@ func (s *Store) ListPipelineTargets(ctx context.Context, runID string) ([]storag
 func (s *Store) SaveWorkflowRun(ctx context.Context, run *storage.WorkflowRunRecord) error {
 	const q = `
 		INSERT INTO workflow_runs
-			(id, workflow_file, job, event, status, started_at, finished_at, duration_ms, error)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			(id, workflow_file, job, event, status, started_at, finished_at, duration_ms, error, output)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			status = excluded.status,
 			finished_at = excluded.finished_at,
 			duration_ms = excluded.duration_ms,
-			error = excluded.error`
+			error = excluded.error,
+			output = excluded.output`
 
 	_, err := s.db.ExecContext(ctx, q,
 		run.ID,
@@ -1268,6 +1270,7 @@ func (s *Store) SaveWorkflowRun(ctx context.Context, run *storage.WorkflowRunRec
 		run.FinishedAt,
 		run.DurationMs,
 		run.Error,
+		run.Output,
 	)
 	if err != nil {
 		return fmt.Errorf("saving workflow run %q: %w", run.ID, err)
@@ -1275,9 +1278,25 @@ func (s *Store) SaveWorkflowRun(ctx context.Context, run *storage.WorkflowRunRec
 	return nil
 }
 
+func (s *Store) GetWorkflowRun(ctx context.Context, id string) (*storage.WorkflowRunRecord, error) {
+	const q = `
+		SELECT id, workflow_file, job, event, status, started_at, finished_at, duration_ms, error, output
+		FROM workflow_runs WHERE id = ?`
+
+	var r storage.WorkflowRunRecord
+	err := s.db.QueryRowContext(ctx, q, id).Scan(
+		&r.ID, &r.WorkflowFile, &r.Job, &r.Event, &r.Status,
+		&r.StartedAt, &r.FinishedAt, &r.DurationMs, &r.Error, &r.Output,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("workflow run %q not found", id)
+	}
+	return &r, nil
+}
+
 func (s *Store) ListWorkflowRuns(ctx context.Context, limit int) ([]storage.WorkflowRunRecord, error) {
 	const q = `
-		SELECT id, workflow_file, job, event, status, started_at, finished_at, duration_ms, error
+		SELECT id, workflow_file, job, event, status, started_at, finished_at, duration_ms, error, output
 		FROM workflow_runs ORDER BY started_at DESC LIMIT ?`
 
 	rows, err := s.db.QueryContext(ctx, q, limit)
@@ -1290,15 +1309,8 @@ func (s *Store) ListWorkflowRuns(ctx context.Context, limit int) ([]storage.Work
 	for rows.Next() {
 		var r storage.WorkflowRunRecord
 		if err := rows.Scan(
-			&r.ID,
-			&r.WorkflowFile,
-			&r.Job,
-			&r.Event,
-			&r.Status,
-			&r.StartedAt,
-			&r.FinishedAt,
-			&r.DurationMs,
-			&r.Error,
+			&r.ID, &r.WorkflowFile, &r.Job, &r.Event, &r.Status,
+			&r.StartedAt, &r.FinishedAt, &r.DurationMs, &r.Error, &r.Output,
 		); err != nil {
 			return nil, fmt.Errorf("scanning workflow run row: %w", err)
 		}

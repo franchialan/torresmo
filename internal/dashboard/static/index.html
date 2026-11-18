@@ -1459,14 +1459,92 @@
                                 w.status === 'running' ? '🔄' : '⏳';
                 var statusCls = 'pipeline-status pipeline-status-' + (w.status || 'pending');
                 var errorHtml = w.error ? '<br><small style="color:var(--red)">' + escapeHtml(w.error) + '</small>' : '';
-                return '<tr>' +
+                return '<tr class="pipeline-row" data-wf-id="' + escapeHtml(w.id) + '" onclick="toggleWorkflowLogs(this)">' +
                     '<td><span class="' + statusCls + '">' + statusIcon + ' ' + escapeHtml(w.status) + '</span></td>' +
                     '<td class="mono">' + escapeHtml(w.workflowFile || 'all') + '</td>' +
                     '<td class="mono">' + escapeHtml(w.job || 'all') + '</td>' +
                     '<td>' + escapeHtml(w.event) + '</td>' +
                     '<td class="mono">' + escapeHtml(w.duration) + errorHtml + '</td>' +
+                    '</tr>' +
+                    '<tr class="pipeline-steps-row" id="wf-logs-' + escapeHtml(w.id) + '">' +
+                    '<td colspan="5"><div class="pipeline-steps-container"><div class="steps-loading">Click to load logs…</div></div></td>' +
                     '</tr>';
             }).join('');
+
+            // Restore expanded state
+            if (expandedWfId) {
+                var row = document.querySelector('.pipeline-row[data-wf-id="' + expandedWfId + '"]');
+                var logsRow = $('wf-logs-' + expandedWfId);
+                if (row && logsRow) {
+                    row.classList.add('expanded');
+                    logsRow.classList.add('visible');
+                    if (wfLogsCache[expandedWfId]) {
+                        renderWorkflowLogs(logsRow, wfLogsCache[expandedWfId]);
+                    }
+                }
+            }
+        }
+
+        var wfLogsCache = {};
+        var expandedWfId = null;
+
+        function toggleWorkflowLogs(row) {
+            var wfId = row.getAttribute('data-wf-id');
+            var logsRow = $('wf-logs-' + wfId);
+            var isExpanded = row.classList.contains('expanded');
+
+            // Collapse all workflow rows
+            document.querySelectorAll('.pipeline-row[data-wf-id]').forEach(function(r) {
+                r.classList.remove('expanded');
+            });
+            document.querySelectorAll('[id^="wf-logs-"]').forEach(function(r) {
+                r.classList.remove('visible');
+            });
+
+            if (isExpanded) {
+                expandedWfId = null;
+                return;
+            }
+
+            expandedWfId = wfId;
+            row.classList.add('expanded');
+            logsRow.classList.add('visible');
+
+            if (wfLogsCache[wfId]) {
+                renderWorkflowLogs(logsRow, wfLogsCache[wfId]);
+                return;
+            }
+
+            var container = logsRow.querySelector('.pipeline-steps-container');
+            container.innerHTML = '<div class="steps-loading">Loading logs…</div>';
+
+            fetch('/api/workflows/' + encodeURIComponent(wfId) + '/logs')
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    wfLogsCache[wfId] = data.output || '';
+                    renderWorkflowLogs(logsRow, data.output || '');
+                })
+                .catch(function() {
+                    container.innerHTML = '<div class="steps-loading">Failed to load logs</div>';
+                });
+        }
+
+        function renderWorkflowLogs(logsRow, output) {
+            var container = logsRow.querySelector('.pipeline-steps-container');
+            if (!output) {
+                container.innerHTML = '<div class="steps-loading">No logs available</div>';
+                return;
+            }
+            var lines = output.split('\n').filter(function(l) { return l.trim(); });
+            container.innerHTML = '<div style="background:#010409;padding:12px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:#c9d1d9;max-height:400px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;border-radius:4px">' +
+                lines.map(function(line) {
+                    var cls = '';
+                    if (line.indexOf('✅') >= 0 || line.indexOf('Success') >= 0) cls = 'style="color:var(--green)"';
+                    else if (line.indexOf('❌') >= 0 || line.indexOf('Error') >= 0 || line.indexOf('failed') >= 0) cls = 'style="color:var(--red)"';
+                    else if (line.indexOf('⭐') >= 0 || line.indexOf('Run') >= 0) cls = 'style="color:var(--blue)"';
+                    return '<div ' + cls + '>' + escapeHtml(line) + '</div>';
+                }).join('') +
+                '</div>';
         }
 
         var stepsCache = {};
