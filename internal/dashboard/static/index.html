@@ -1403,9 +1403,23 @@
             if (!hasRunning) {
                 liveSection.classList.add('hidden');
             }
+
+            // Restore expanded pipeline row if it was open before re-render
+            if (expandedRunId) {
+                var row = document.querySelector('.pipeline-row[data-run-id="' + expandedRunId + '"]');
+                var stepsRow = $('steps-' + expandedRunId);
+                if (row && stepsRow) {
+                    row.classList.add('expanded');
+                    stepsRow.classList.add('visible');
+                    if (stepsCache[expandedRunId]) {
+                        renderSteps(stepsRow, stepsCache[expandedRunId]);
+                    }
+                }
+            }
         }
 
         var stepsCache = {};
+        var expandedRunId = null;
 
         function togglePipelineSteps(row) {
             var runId = row.getAttribute('data-run-id');
@@ -1420,8 +1434,12 @@
                 r.classList.remove('visible');
             });
 
-            if (isExpanded) return;
+            if (isExpanded) {
+                expandedRunId = null;
+                return;
+            }
 
+            expandedRunId = runId;
             row.classList.add('expanded');
             stepsRow.classList.add('visible');
 
