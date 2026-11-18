@@ -189,11 +189,17 @@ func getAddonRegistry() (*addon.Registry, error) {
 }
 
 // resolveCluster returns the cluster name, using the flag if provided,
-// or auto-selecting if there is exactly one cluster.
+// then checking the active context, then auto-selecting if there is exactly one cluster.
 func resolveCluster(flagValue string) (string, error) {
 	if flagValue != "" {
 		return flagValue, nil
 	}
+
+	// Check active context
+	if ctx := cluster.GetContext(); ctx != "" {
+		return ctx, nil
+	}
+
 	mgr, _, err := initDeps()
 	if err != nil {
 		return "", err
@@ -208,5 +214,5 @@ func resolveCluster(flagValue string) (string, error) {
 	if len(clusters) == 1 {
 		return clusters[0].Name, nil
 	}
-	return "", fmt.Errorf("multiple clusters found; use --cluster to specify one")
+	return "", fmt.Errorf("multiple clusters found; use --cluster to specify one or set context with 'torresmo context set <name>'")
 }

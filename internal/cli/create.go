@@ -111,7 +111,11 @@ var createClusterCmd = &cobra.Command{
 			return fmt.Errorf("failed to create cluster: %w", err)
 		}
 
+		// Set the active context to the new cluster.
+		_ = cluster.SetContext(name)
+
 		fmt.Printf("✓ Cluster %q is ready!\n", name)
+		fmt.Printf("  Context set to %s\n", cluster.ContextName(name))
 
 		// Auto-install addons declared in the config file or template.
 		if len(addonNames) > 0 {

@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+
+	"github.com/torresmo-dev/torresmo/internal/cluster"
 )
 
 var deleteCmd = &cobra.Command{
@@ -32,6 +34,11 @@ var deleteClusterCmd = &cobra.Command{
 
 		if err := mgr.DeleteCluster(ctx, name); err != nil {
 			return fmt.Errorf("failed to delete cluster: %w", err)
+		}
+
+		// Clear context if this was the active cluster.
+		if cluster.GetContext() == name {
+			_ = cluster.ClearContext()
 		}
 
 		fmt.Printf("✓ Cluster %q deleted\n", name)

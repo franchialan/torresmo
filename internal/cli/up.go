@@ -10,6 +10,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	v1 "github.com/torresmo-dev/torresmo/api/v1"
+	"github.com/torresmo-dev/torresmo/internal/cluster"
 	"github.com/torresmo-dev/torresmo/internal/addon"
 )
 
@@ -92,7 +93,9 @@ var upCmd = &cobra.Command{
 		if err := mgr.CreateCluster(ctx, clusterName, nodeCount, profileName, podCIDR); err != nil {
 			return fmt.Errorf("failed to create cluster: %w", err)
 		}
+		_ = cluster.SetContext(clusterName)
 		fmt.Printf("✓ Cluster %q is ready!\n", clusterName)
+		fmt.Printf("  Context set to %s\n", cluster.ContextName(clusterName))
 
 		if len(addonRefs) > 0 {
 			registry, err := getAddonRegistry()
