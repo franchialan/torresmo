@@ -18,4 +18,6 @@ func RegisterAll(registry *addon.Registry, orch *orchestrator.Orchestrator, stor
 	registry.Register(NewMinIO(orch, store))
 	registry.Register(NewJaeger(orch, store))
 	registry.Register(NewKafka(orch, store))
+	registry.Register(NewLocalStack(orch, store))
+	registry.Register(NewVault(orch, store))
 }

@@ -1,0 +1,31 @@
+apiVersion: torresmo.io/v1
+kind: Addon
+metadata:
+  name: vault
+  description: Secrets management, encryption, and identity-based access
+  author: torresmo-dev
+  version: "1.0.0"
+spec:
+  versions: ["1.19.0", "1.18.0", "1.17.0"]
+  default: "1.19.0"
+  containers:
+    - name: vault
+      image: "hashicorp/vault:{version}"
+      command: ["server", "-dev"]
+  ports:
+    - name: http
+      containerPort: 8200
+      protocol: tcp
+  env:
+    - name: VAULT_DEV_ROOT_TOKEN_ID
+      value: "root"
+      fromConfig: "root_token"
+    - name: VAULT_DEV_LISTEN_ADDRESS
+      value: "0.0.0.0:8200"
+    - name: VAULT_ADDR
+      value: "http://0.0.0.0:8200"
+  config:
+    - name: root_token
+      type: string
+      default: "root"
+      description: "Development root token"

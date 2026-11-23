@@ -76,6 +76,13 @@ var builtinTemplates = map[string]Template{
 		Profile:     "standard",
 		Addons:      []string{"redis", "postgres", "prometheus", "grafana"},
 	},
+	"aws-dev": {
+		Name:        "aws-dev",
+		Description: "AWS development with LocalStack, Vault, and Postgres",
+		Nodes:       2,
+		Profile:     "standard",
+		Addons:      []string{"localstack", "vault", "postgres", "redis"},
+	},
 }
 
 // List returns all available templates (builtin + custom).

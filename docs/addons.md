@@ -4,7 +4,7 @@ Addons are pre-configured, production-grade services that you can install into a
 
 Each addon creates a **Pod** and a **ClusterIP Service** inside your cluster. The service provides a stable DNS name (`<addon>.<namespace>`) that your applications use to connect, regardless of pod restarts or rescheduling.
 
-Torresmo ships with **10 built-in addons** covering databases, caching, messaging, monitoring, tracing, and infrastructure. You can also create and install **community addons** using a simple YAML manifest format.
+Torresmo ships with **12 built-in addons** covering databases, caching, messaging, monitoring, tracing, cloud emulation, secrets management, and infrastructure. You can also create and install **community addons** using a simple YAML manifest format.
 
 ---
 
@@ -545,6 +545,120 @@ Use SSL:    false
 
 ---
 
+### LocalStack
+
+AWS cloud service emulator (S3, KMS, STS, IAM, SSM, SQS, SNS, Lambda).
+
+| Property | Value |
+|---|---|
+| Image | `localstack/localstack:{version}` |
+| Default version | `4` |
+| Available versions | `4`, `3` |
+| Port | 4566 |
+
+LocalStack emulates a wide range of AWS services locally. All services are exposed through a single gateway endpoint on port 4566.
+
+**Configuration:**
+
+| Key | Default | Description |
+|---|---|---|
+| `services` | `s3,sqs,sns,ssm,kms,sts,iam,secretsmanager,lambda` | Comma-separated list of AWS services to enable |
+| `debug` | `0` | Enable debug mode (`0` or `1`) |
+
+**Install with defaults:**
+
+```bash
+torresmo addon install localstack
+```
+
+**Install with config overrides:**
+
+```bash
+torresmo addon install localstack --version 3 --config services=s3,sqs,lambda --config debug=1
+```
+
+**Verify it's working:**
+
+```bash
+torresmo exec localstack-0 -- awslocal s3 ls
+```
+
+**Endpoint for your app:**
+
+```
+http://localstack.<namespace>:4566
+```
+
+Configure your AWS SDK with:
+
+```
+Endpoint:   http://localstack.default:4566
+Region:     us-east-1
+Access Key: test
+Secret Key: test
+```
+
+---
+
+### Vault
+
+Secrets management, encryption, and identity-based access.
+
+| Property | Value |
+|---|---|
+| Image | `hashicorp/vault:{version}` |
+| Default version | `1.19.0` |
+| Available versions | `1.19.0`, `1.18.0`, `1.17.0` |
+| Port | 8200 |
+
+Vault runs in **dev mode** with an in-memory backend. This is ideal for local development — secrets are not persisted across restarts. The dev root token is used for authentication.
+
+**Configuration:**
+
+| Key | Default | Description |
+|---|---|---|
+| `root_token` | `root` | Development root token (sets `VAULT_DEV_ROOT_TOKEN_ID` and `VAULT_TOKEN`) |
+
+**Install with defaults:**
+
+```bash
+torresmo addon install vault
+```
+
+**Install with config overrides:**
+
+```bash
+torresmo addon install vault --version 1.18.0 --config root_token=mytoken
+```
+
+**Verify it's working:**
+
+```bash
+torresmo exec vault-0 -- vault status
+```
+
+**Endpoint for your app:**
+
+```
+http://vault.<namespace>:8200
+```
+
+Configure your Vault client with:
+
+```
+VAULT_ADDR=http://vault.default:8200
+VAULT_TOKEN=root
+```
+
+Use port forwarding to access the Vault UI from your host:
+
+```bash
+torresmo proxy vault-0 8200:8200
+# → Open http://localhost:8200
+```
+
+---
+
 ## Managing Addons
 
 ### Install an addon
@@ -595,17 +709,19 @@ This deletes the addon's Pod and Service, and removes the addon record from the 
 torresmo addon search
 
 # Output:
-# NAME        DESCRIPTION
-# grafana     Observability dashboards and visualization
-# istio       Service mesh for traffic management, security, and observability
-# jaeger      Distributed tracing system
-# kafka       Distributed event streaming platform
-# minio       S3-compatible object storage
-# mongodb     NoSQL document database
-# nats        Cloud-native messaging system
-# postgres    PostgreSQL relational database
-# prometheus  Monitoring and alerting toolkit
-# redis       In-memory data store for caching and messaging
+# NAME         DESCRIPTION
+# grafana      Observability dashboards and visualization
+# istio        Service mesh for traffic management, security, and observability
+# jaeger       Distributed tracing system
+# kafka        Distributed event streaming platform
+# localstack   AWS cloud service emulator (S3, KMS, STS, IAM, SSM, SQS, SNS, Lambda)
+# minio        S3-compatible object storage
+# mongodb      NoSQL document database
+# nats         Cloud-native messaging system
+# postgres     PostgreSQL relational database
+# prometheus   Monitoring and alerting toolkit
+# redis        In-memory data store for caching and messaging
+# vault        Secrets management, encryption, and identity-based access
 ```
 
 ### Get addon info
@@ -663,6 +779,9 @@ torresmo create cluster -t microservices --name dev
 
 # Data pipeline: Kafka + Postgres + Redis + MinIO
 torresmo create cluster -t data-pipeline --name dev
+
+# AWS development: LocalStack + Vault + Postgres + Redis
+torresmo create cluster -t aws-dev --name dev
 ```
 
 See the [Getting Started guide](getting-started.md) for the full list of templates and their addon sets.
@@ -879,6 +998,9 @@ Each addon maps config keys to container environment variables internally:
 | grafana | `admin_password` | `GF_SECURITY_ADMIN_PASSWORD` |
 | minio | `root_user` | `MINIO_ROOT_USER` |
 | minio | `root_password` | `MINIO_ROOT_PASSWORD` |
+| localstack | `services` | `SERVICES` |
+| localstack | `debug` | `DEBUG` |
+| vault | `root_token` | `VAULT_DEV_ROOT_TOKEN_ID`, `VAULT_TOKEN` |
 | redis | `maxmemory` | Passed as `--maxmemory` command-line arg |
 
 For community addons, the config-to-env mapping is defined in the manifest's `env[].fromConfig` field.
@@ -896,6 +1018,8 @@ Addon configuration is stored in the torresmo database. When you run `torresmo a
 | mongodb | `root_user`, `root_password` |
 | grafana | `admin_user`, `admin_password` |
 | minio | `root_user`, `root_password` |
+| localstack | `services`, `debug` |
+| vault | `root_token` |
 | prometheus | — (none) |
 | istio | — (none) |
 | jaeger | — (none) |

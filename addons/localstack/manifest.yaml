@@ -1,0 +1,33 @@
+apiVersion: torresmo.io/v1
+kind: Addon
+metadata:
+  name: localstack
+  description: AWS cloud service emulator (S3, KMS, STS, IAM, SSM, SQS, SNS, Lambda)
+  author: torresmo-dev
+  version: "1.0.0"
+spec:
+  versions: ["4", "3"]
+  default: "4"
+  containers:
+    - name: localstack
+      image: "localstack/localstack:{version}"
+  ports:
+    - name: gateway
+      containerPort: 4566
+      protocol: tcp
+  env:
+    - name: SERVICES
+      value: "s3,sqs,sns,ssm,kms,sts,iam,secretsmanager,lambda"
+      fromConfig: "services"
+    - name: DEBUG
+      value: "0"
+      fromConfig: "debug"
+  config:
+    - name: services
+      type: string
+      default: "s3,sqs,sns,ssm,kms,sts,iam,secretsmanager,lambda"
+      description: "Comma-separated list of AWS services to enable"
+    - name: debug
+      type: string
+      default: "0"
+      description: "Enable debug mode (0 or 1)"
