@@ -42,6 +42,13 @@ torresmo create cluster --name my-first-cluster --nodes 3
 
 This creates a 3-node cluster (1 control-plane + 2 workers) using Docker containers.
 
+You can also use a template for a pre-configured stack:
+
+```bash
+# AWS development stack with LocalStack, Vault, Postgres, and Redis
+torresmo create cluster -t aws-dev --name dev
+```
+
 ## Check Cluster Status
 
 ```bash
@@ -60,6 +67,12 @@ torresmo addon install redis
 
 # Install PostgreSQL
 torresmo addon install postgres
+
+# Install AWS emulator
+torresmo addon install localstack
+
+# Install Vault
+torresmo addon install vault
 
 # List installed addons
 torresmo addon list

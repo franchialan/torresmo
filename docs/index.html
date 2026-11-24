@@ -384,8 +384,8 @@ footer p{margin-top:8px}
     </div>
     <div class="card feature-card">
       <span class="icon">📦</span>
-      <h3>10 Built-in Addons</h3>
-      <p>Redis, Postgres, Kafka, MongoDB, Prometheus, Grafana, and more — pre-configured.</p>
+      <h3>12 Built-in Addons</h3>
+      <p>Redis, Postgres, Kafka, MongoDB, Prometheus, Grafana, LocalStack, Vault, and more — pre-configured.</p>
     </div>
     <div class="card feature-card">
       <span class="icon">🔧</span>
@@ -484,6 +484,11 @@ footer p{margin-top:8px}
       <p>Full monitoring stack</p>
       <div class="badge-row"><span class="badge">Redis</span><span class="badge">Postgres</span><span class="badge">Prometheus</span><span class="badge">Grafana</span></div>
     </div>
+    <div class="card template-card">
+      <h4>aws-dev</h4>
+      <p>AWS development stack</p>
+      <div class="badge-row"><span class="badge">LocalStack</span><span class="badge">Vault</span><span class="badge">Postgres</span><span class="badge">Redis</span></div>
+    </div>
   </div>
 </div>
 </section>
@@ -507,7 +512,7 @@ footer p{margin-top:8px}
         <tr><td>AI-powered CLI</td><td class="cross">✗</td><td class="cross">✗</td><td class="check">✓ Natural language</td></tr>
         <tr><td>Dashboard</td><td class="cross">✗</td><td class="cross">✗</td><td class="check">✓ TUI &amp; Web</td></tr>
         <tr><td>Snapshots</td><td class="cross">✗</td><td class="cross">✗</td><td class="check">✓ <code>snapshot create</code></td></tr>
-        <tr><td>Pre-built templates</td><td class="cross">✗</td><td class="cross">✗</td><td class="check">✓ 8 templates</td></tr>
+        <tr><td>Pre-built templates</td><td class="cross">✗</td><td class="cross">✗</td><td class="check">✓ 9 templates</td></tr>
         <tr><td>Hot-reload dev mode</td><td class="cross">✗</td><td class="cross">✗</td><td class="check">✓ <code>dev start</code></td></tr>
         <tr><td>Compose migration</td><td>N/A</td><td class="cross">✗</td><td class="check">✓ <code>compose import</code></td></tr>
         <tr><td>K8s YAML compatibility</td><td class="cross">✗</td><td class="check">✓ Native</td><td class="check">✓ <code>torresmo apply -f</code></td></tr>
@@ -585,9 +590,9 @@ footer p{margin-top:8px}
     <div class="dash-view active" id="dash-cluster">
       <div class="dash-stats">
         <div class="dash-stat"><div class="dash-stat-num">3</div><div class="dash-stat-label">🖥️ Nodes</div></div>
-        <div class="dash-stat"><div class="dash-stat-num">4</div><div class="dash-stat-label">📦 Pods</div></div>
-        <div class="dash-stat"><div class="dash-stat-num">4</div><div class="dash-stat-label">🔌 Services</div></div>
-        <div class="dash-stat"><div class="dash-stat-num">4</div><div class="dash-stat-label">🧩 Addons</div></div>
+        <div class="dash-stat"><div class="dash-stat-num">6</div><div class="dash-stat-label">📦 Pods</div></div>
+        <div class="dash-stat"><div class="dash-stat-num">6</div><div class="dash-stat-label">🔌 Services</div></div>
+        <div class="dash-stat"><div class="dash-stat-num">6</div><div class="dash-stat-label">🧩 Addons</div></div>
       </div>
       <div class="dash-section-title">Nodes</div>
       <table class="dash-table">
@@ -635,6 +640,8 @@ footer p{margin-top:8px}
           <tr><td style="font-family:monospace">postgres</td><td style="color:#8b949e">default</td><td><span class="dash-badge">16</span></td><td class="status-running">● Running</td></tr>
           <tr><td style="font-family:monospace">prometheus</td><td style="color:#8b949e">default</td><td><span class="dash-badge">v2.51.0</span></td><td class="status-running">● Running</td></tr>
           <tr><td style="font-family:monospace">grafana</td><td style="color:#8b949e">default</td><td><span class="dash-badge">10.4.0</span></td><td class="status-running">● Running</td></tr>
+          <tr><td style="font-family:monospace">localstack</td><td style="color:#8b949e">default</td><td><span class="dash-badge">4</span></td><td class="status-running">● Running</td></tr>
+          <tr><td style="font-family:monospace">vault</td><td style="color:#8b949e">default</td><td><span class="dash-badge">1.19.0</span></td><td class="status-running">● Running</td></tr>
         </tbody>
       </table>
     </div>

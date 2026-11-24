@@ -59,7 +59,7 @@ torresmo create cluster -t go-api --name dev
 | AI-powered CLI | ❌ | ❌ | ✅ `torresmo "install redis"` |
 | TUI Dashboard | ❌ | ❌ (k9s external) | ✅ `dashboard` |
 | Environment snapshots | ❌ | ❌ | ✅ `snapshot create` |
-| Pre-built templates | ❌ | ❌ | ✅ 8 templates |
+| Pre-built templates | ❌ | ❌ | ✅ 9 templates |
 | Hot-reload dev mode | ❌ Volume hacks | ❌ (Tilt/Skaffold) | ✅ `dev start` |
 | Mock servers | ❌ | ❌ | ✅ `mock create` |
 | Benchmarking | ❌ | ❌ | ✅ `benchmark redis` |
@@ -127,7 +127,7 @@ torresmo chat
 
 No other container orchestrator offers natural language CLI interaction.
 
-### 📦 10 Built-in Addons
+### 📦 12 Built-in Addons
 
 Install production-grade services with a single command:
 
@@ -142,6 +142,8 @@ torresmo addon install jaeger         # Distributed tracing (port 16686)
 torresmo addon install kafka          # Event streaming (port 9092)
 torresmo addon install nats           # Messaging (port 4222)
 torresmo addon install minio          # S3 storage (port 9000)
+torresmo addon install localstack     # AWS emulator (port 4566)
+torresmo addon install vault          # Secrets management (port 8200)
 ```
 
 Each addon is fully configured and ready to use — no Helm charts, no values files, no guessing.
@@ -356,6 +358,7 @@ torresmo delete cluster dev
 | `microservices` | Service mesh + tracing | Istio, Jaeger, Prometheus, Grafana |
 | `data-pipeline` | Streaming + storage | Kafka, Postgres, Redis, MinIO |
 | `fullstack` | Full monitoring stack | Redis, Postgres, Prometheus, Grafana |
+| `aws-dev` | AWS development stack | LocalStack, Vault, Postgres, Redis |
 
 ## Documentation
 
